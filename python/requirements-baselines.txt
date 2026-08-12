@@ -1,0 +1,8 @@
+# Needed only from R1 onward, to compare against existing kernels
+# (Marlin / Machete / vLLM FP4 paths) and to produce quantized checkpoints.
+# Install on the DGX, not necessarily on the dev box.
+-r requirements.txt
+torch>=2.5
+# Add when R1 starts, pinned to whatever the DGX driver supports:
+# vllm
+# llmcompressor

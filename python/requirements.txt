@@ -1,0 +1,9 @@
+# Analysis and figure generation for qgemm-mx.
+# Deliberately minimal: the timing loop is CUDA, Python only orchestrates and
+# plots. Torch is NOT required for R0 and is listed separately in
+# requirements-baselines.txt, because pulling it in early invites version drift
+# in the one part of the project that must stay reproducible.
+numpy>=1.26
+pandas>=2.1
+matplotlib>=3.8
+pytest>=8.0
