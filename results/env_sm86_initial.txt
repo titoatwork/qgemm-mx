@@ -1,0 +1,44 @@
+=== capture ===
+utc              20260812T022000Z
+host             LAPTOP-B3S9FPUN
+user             titoisalive
+kernel           Linux 6.6.87.2-microsoft-standard-WSL2
+virtualization   WSL2  <-- launch overhead is inflated vs native Linux;
+                       do not compare absolute launch cost across hosts
+cpu              AMD Ryzen 5 8645HS w/ Radeon 760M Graphics
+sockets/NUMA     1
+
+=== toolchain ===
+nvcc             Build cuda_12.6.r12.6/compiler.34431801_0
+g++              
+git rev          not a repo
+git dirty        YES
+
+=== gpu inventory ===
+index, name, pci.bus_id, driver_version, vbios_version, memory.total [MiB], compute_mode, persistence_mode
+0, NVIDIA GeForce RTX 3050 6GB Laptop GPU, 00000000:01:00.0, 592.82, 94.07.87.40.2f, 6144 MiB, Default, Enabled
+
+=== clocks, power, thermals at capture time ===
+index, clocks.current.sm [MHz], clocks.max.sm [MHz], clocks.current.memory [MHz], clocks.max.memory [MHz], temperature.gpu, power.draw [W], power.limit [W], utilization.gpu [%], clocks_event_reasons.active
+0, 210 MHz, 2100 MHz, 374 MHz, 5486 MHz, 43, 4.83 W, [N/A], 2 %, 0x0000000000000001
+
+NOTE: locked clocks require root (nvidia-smi -lgc). If clocks.sm is well
+      below clocks.max.sm, or a throttle reason is active, the run is
+      thermally or power limited and absolute latencies are not portable.
+
+=== other processes on the device (contention check) ===
+gpu_uuid, pid, process_name, used_gpu_memory [MiB]
+(any row here other than your own benchmark invalidates exclusive-access claims)
+
+=== MIG / MPS state ===
+mig.mode.current
+[N/A]
+MPS: not running
+
+=== relevant environment ===
+CUDA_VISIBLE_DEVICES=<unset>
+CUDA_HOME=<unset>
+CUDA_MODULE_LOADING=<unset>
+CUBLAS_WORKSPACE_CONFIG=<unset>
+CUDA_DEVICE_MAX_CONNECTIONS=<unset>
+OMP_NUM_THREADS=<unset>

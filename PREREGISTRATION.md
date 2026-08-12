@@ -129,4 +129,28 @@ fragment layout rather than to arithmetic codegen quality.
 
 *Append only. Date every entry. Record refutations as prominently as confirmations.*
 
-*(empty — no measurement has been run against these predictions yet)*
+### 2026-08-12 · Harness validation on sm_86 (pre-R0)
+
+Not a prediction test — this is the harness proving itself against a known
+baseline. `results/cublas_fp16_sm86.csv`.
+
+- **cuBLAS FP16 at `M`=1 achieves 101.3% of ideal** (125.9 GB/s measured against
+  a 124.2 GB/s denominator). Slightly over 100% is noise, and here it is
+  *positive* evidence: FP16 GEMM at `M`=1 is a pure weight stream, so landing on
+  the memory roofline validates both the timing harness and the bandwidth
+  denominator simultaneously. Sanity threshold set to 105%.
+- **L2 inflation = 1.00× at every shape**, as expected: 32 MB of FP16 weights
+  cannot fit in 1.5 MB of L2 even in the single-buffer case. The rotation
+  machinery is exercised and correct, but **this device cannot demonstrate the
+  hazard it defends against.** Re-validate on sm_90, where every frozen shape is
+  L2-resident.
+- **Launch share ≈ 2%**, because these kernels run 130–270 µs on a 20-SM laptop.
+  On sm_90 the same kernels are ~10 µs and dispatch will dominate. Another
+  hazard this device hides.
+- **Unexpected observation (not predicted):** percent-of-ideal drops as a *step*
+  from 98.4% at `M`=32 to 74.7% at `M`=64, then holds at 75.1% through `M`=128,
+  before resuming a smooth roofline decay. A step discontinuity is not a
+  roofline transition — it looks like a cuBLAS kernel-selection boundary costing
+  ~25% of achievable bandwidth. Worth confirming with Nsight once counters are
+  available, and worth checking whether the same discontinuity appears on sm_90.
+  Flagged here because it was found before any prediction covered it.
