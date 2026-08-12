@@ -25,13 +25,15 @@ NVCCFLAGS := -O3 -std=c++17 -arch=$(ARCH) -lineinfo --expt-relaxed-constexpr \
 LDLIBS    := -lcublas
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
-ALL     := $(PROBES)
+BENCHES := $(BUILD)/bench_cublas
+ALL     := $(PROBES) $(BENCHES)
 
-.PHONY: all probe run-probe clean arch-info
+.PHONY: all probe bench run-probe clean arch-info
 
 all: $(ALL)
 
 probe: $(PROBES)
+bench: $(BENCHES)
 
 $(BUILD):
 	@mkdir -p $(BUILD)
@@ -41,6 +43,9 @@ $(BUILD)/device_props: src/probe/device_props.cu include/qgemm/*.cuh | $(BUILD)
 
 $(BUILD)/bandwidth: src/probe/bandwidth.cu include/qgemm/*.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
+
+$(BUILD)/bench_cublas: src/bench/bench_cublas.cu include/qgemm/*.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.
