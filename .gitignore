@@ -1,0 +1,12 @@
+build/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.ncu-rep
+*.nsys-rep
+*.qdrep
+*.o
+*.so
+compile_commands.json
+.cache/
