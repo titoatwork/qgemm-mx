@@ -42,7 +42,7 @@ CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
 CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
              $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy \
              $(BUILD)/test_contract $(BUILD)/test_permute \
-             $(BUILD)/test_a_fragment
+             $(BUILD)/test_a_fragment $(BUILD)/test_wgmma_desc
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
@@ -81,7 +81,14 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_permute
 	@echo "--- test_a_fragment ---"
 	@$(BUILD)/test_a_fragment
+	@echo "--- test_wgmma_desc ---"
+	@$(BUILD)/test_wgmma_desc
 	@echo "All CPU tests passed."
+
+$(BUILD)/test_wgmma_desc: tests/test_wgmma_desc.cpp include/qgemm/wgmma_smem_desc.hpp \
+                          include/qgemm/kernel_contract.hpp include/qgemm/a_fragment.hpp \
+                          include/qgemm/occupancy.hpp include/qgemm/shapes.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/test_a_fragment: tests/test_a_fragment.cpp include/qgemm/a_fragment.hpp \
                           include/qgemm/permute.hpp include/qgemm/pack.hpp \
@@ -130,7 +137,7 @@ $(BUILD)/test_even_odd_gpu: tests/test_even_odd_gpu.cu include/qgemm/permute.hpp
 test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
           $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode \
           $(BUILD)/test_even_odd_gpu $(BUILD)/test_dual_nibble \
-          $(BUILD)/test_dual_splitk
+          $(BUILD)/test_dual_splitk $(BUILD)/test_a_fragment_gpu
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
@@ -145,7 +152,14 @@ test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
 	@$(BUILD)/test_dual_nibble
 	@echo "--- test_dual_splitk ---"
 	@$(BUILD)/test_dual_splitk
+	@echo "--- test_a_fragment_gpu ---"
+	@$(BUILD)/test_a_fragment_gpu
 	@echo "GPU fused-ref tests passed."
+
+$(BUILD)/test_a_fragment_gpu: tests/test_a_fragment_gpu.cu \
+                              include/qgemm/qgemv_ref.cuh include/qgemm/a_fragment.hpp \
+                              include/qgemm/permute.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 $(BUILD)/test_dual_splitk: tests/test_dual_splitk.cu include/qgemm/qgemv_ref.cuh \
                            include/qgemm/permute.hpp | $(BUILD)

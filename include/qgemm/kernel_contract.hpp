@@ -82,9 +82,30 @@ inline DecodePlan plan_decode(std::size_t N, int sm_count,
 inline constexpr int kMxBlock = 32;
 inline constexpr int kNvBlock = 16;
 inline constexpr int kInt4Group = 128;
+inline constexpr int kWgmmaAtomK = 16;  // first opcode k16
+
+// MX: one E8M0 covers 32 along K = two k16 atoms. Those two atoms MUST
+// share the same scale. NV: one E4M3 per k16 (aligned, one atom).
+inline constexpr int kMxAtomsPerScale = kMxBlock / kWgmmaAtomK;  // 2
+inline constexpr int kNvAtomsPerScale = kNvBlock / kWgmmaAtomK;  // 1
 
 inline constexpr bool k_multiple_ok(std::size_t K, int group) {
   return group > 0 && (K % static_cast<std::size_t>(group)) == 0;
+}
+
+inline constexpr int mx_scale_block(int k) { return k / kMxBlock; }
+
+inline constexpr int mx_scale_block_from_ktile(int k_tile) {
+  return k_tile / kMxAtomsPerScale;
+}
+
+inline constexpr bool ktiles_share_mx_scale(int kt_a, int kt_b) {
+  return mx_scale_block_from_ktile(kt_a) == mx_scale_block_from_ktile(kt_b);
+}
+
+// Split-K / K-range must land on scale-group edges (MX: 32).
+inline constexpr bool k_range_respects_group(int k0, int k1, int group) {
+  return group > 0 && (k0 % group) == 0 && (k1 % group) == 0 && k1 >= k0;
 }
 
 }  // namespace contract

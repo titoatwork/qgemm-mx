@@ -31,6 +31,32 @@ __device__ __forceinline__ uint8_t unpack_nibble_even_odd(
   return static_cast<uint8_t>((w >> (4 * slot)) & 0xFu);
 }
 
+// Official wgmma A-fragment inverse (same map as a_fragment.hpp, no throw).
+// words layout: [n_tile][k_tile][tid], nibble i in bits [4i:4i+4).
+__device__ __forceinline__ void a_fragment_owner_dev(int row, int col, int& tid,
+                                                     int& i) {
+  const int warp = row >> 4;
+  const int rw = row & 15;
+  const int groupID = (rw < 8) ? rw : (rw - 8);
+  const int tg = (col < 8) ? (col >> 1) : ((col - 8) >> 1);
+  i = (col < 8) ? ((rw < 8 ? 0 : 2) + (col & 1))
+                : ((rw < 8 ? 4 : 6) + (col & 1));
+  tid = (warp << 5) + (groupID << 2) + tg;
+}
+
+__device__ __forceinline__ uint8_t unpack_nibble_a_fragment(
+    const unsigned* words, size_t n, size_t k, size_t K) {
+  const size_t k_tiles = K >> 4;
+  const size_t nt = n >> 6;
+  const size_t kt = k >> 4;
+  int tid = 0, i = 0;
+  a_fragment_owner_dev(static_cast<int>(n & 63u), static_cast<int>(k & 15u), tid,
+                       i);
+  const unsigned w =
+      words[(nt * k_tiles + kt) * 128u + static_cast<size_t>(tid)];
+  return static_cast<uint8_t>((w >> (4 * i)) & 0xFu);
+}
+
 // Dual extract: one 32-bit even/odd word → 4 even nibbles + 4 odd nibbles.
 __device__ __forceinline__ void dual_nibbles_from_word(unsigned w,
                                                        uint8_t even[4],
@@ -157,6 +183,16 @@ __device__ __forceinline__ float dequant_mxfp4_elem(const uint8_t* data,
   const size_t blocks = K / 32;
   const size_t b = k / 32;
   return mxfp4_elem_ldexp(unpack_nibble(data, n * K + k),
+                          scales[n * blocks + b]);
+}
+
+__device__ __forceinline__ float dequant_mxfp4_elem_afrag(
+    const unsigned* words, const uint8_t* scales, size_t n, size_t k, size_t N,
+    size_t K) {
+  (void)N;
+  const size_t blocks = K / 32;
+  const size_t b = k / 32;
+  return mxfp4_elem_ldexp(unpack_nibble_a_fragment(words, n, k, K),
                           scales[n * blocks + b]);
 }
 

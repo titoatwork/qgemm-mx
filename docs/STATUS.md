@@ -1,6 +1,6 @@
 # Project status dashboard
 
-**Last updated:** 2026-08-13 (first opcode `m64n8k16` + official A-fragment permute)  
+**Last updated:** 2026-08-13 (device A-fragment fused-ref + SMEM desc bits)  
 **Remote policy:** **local-only development** — no routine GitHub push (see [`LOCAL_WORKFLOW.md`](LOCAL_WORKFLOW.md))  
 **Authoritative plan:** [`MASTER_EXECUTION_PLAN.md`](MASTER_EXECUTION_PLAN.md)  
 **Thesis:** [`PROJECT-v2.0-fp4-hopper.md`](PROJECT-v2.0-fp4-hopper.md)  
@@ -15,7 +15,7 @@
 |------|--------|------|
 | **R0 Instrument** | **Local peak + fused-ref GPU path** | Harness, host pack, occupancy math, full frozen shapes on sm_86, stream/cuBLAS/naive benches. **GPU fused-ref matches host** (INT4 one-hot, MX/NV random, MX K=2880). **sm_90 + public kernels still open** |
 | R1 Quantify | Not started | Needs sm_90 + public baselines |
-| R2 Close | Layout table **done**; kernel not started | Occupancy (256 + 64). Official A-fragment + host permute. Fused-ref is **correctness, not SOTA**. No `wgmma` issued |
+| R2 Close | Layout + device permute **done**; `wgmma` not issued | Occupancy (256 + 64). Official A-fragment host+device. SMEM desc bits. Fused-ref is **correctness, not SOTA** |
 | R3 Extend | Not started | |
 
 ---
@@ -28,6 +28,8 @@
 | Host pack / probes / ref GEMM | `make test-cpu` | INT4-g128, MXFP4, NVFP4 sequential pack |
 | Occupancy / CTA table | `make test-cpu` or `python3 python/occupancy_table.py` | Tile 256 and atom-64; H100 starved without split-K either way. [`OCCUPANCY.md`](OCCUPANCY.md) |
 | A-fragment permute | `make test-cpu` (`test_a_fragment`) | Official `m64n8k16` table; host pre-shuffle + inverse. [`A_FRAGMENT.md`](A_FRAGMENT.md) |
+| A-fragment GPU fused-ref | `make test-gpu` (`test_a_fragment_gpu`) | Device unpack of A-fragment words == sequential. **Correctness only** |
+| SMEM desc / MX k16 pair | `make test-cpu` (`test_wgmma_desc`) | Official 64-bit B descriptor bits; two k16 share one MX scale |
 | GPU fused-ref vs host | `make test-gpu` | Same decode as `pack.hpp`. **Correctness only** — one thread per output, no Tensor Cores |
 | Stream-ideal | `./build/bench_stream_ideal 0 124.2 all` | Pure weight traffic vs measured BW |
 | cuBLAS FP16 | `./build/bench_cublas 0 124.2 all 256` | Harness self-check; full frozen shapes, M≤256 |
@@ -61,6 +63,7 @@
 | `include/qgemm/qgemv_ref.cuh` | Fused-ref kernel (correctness, not SOTA) |
 | `include/qgemm/occupancy.hpp` | Testable CTA arithmetic (tiles 256 and 64) |
 | `include/qgemm/a_fragment.hpp` | Official `m64n8k16` A-fragment + host pre-shuffle |
+| `include/qgemm/wgmma_smem_desc.hpp` | Official 64-bit SMEM descriptor for B |
 
 ---
 

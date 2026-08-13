@@ -167,7 +167,9 @@ MX block 32 = **two** k16 steps. NV block 16 = one k16. 2880 aligns with both.
 - [x] Transcribe A-fragment table from PTX (cite section + version)
 - [x] `permute_to_a_fragment()` + inverse + test vs table
 - [x] Recompute occupancy for CTA tile = 64 (and keep 256)
-- [ ] TMA descriptor for B = Xᵀ tile
+- [x] Device A-fragment fused-ref == sequential (`k_qgemm_ref_mx_a_fragment`)
+- [x] MX: two k16 share one E8M0 (`kernel_contract.hpp`, `test_wgmma_desc`)
+- [x] wgmma SMEM descriptor bits for B (`wgmma_smem_desc.hpp`) — TMA tensormap not issued
 - [ ] Emit `wgmma` on sm_90 (DGX)
 - [ ] Do **not** ship a kernel that only does even/odd dual-nibble and claims Hopper peak
 

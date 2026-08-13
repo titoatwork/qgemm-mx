@@ -38,6 +38,10 @@ int main() {
   EXPECT(atom90.n_ctas == 64, "one-atom CTAs");
   EXPECT(atom90.split_k >= 4, "H100 still needs split-K at tile 64");
 
+  EXPECT(ktiles_share_mx_scale(0, 1) && !ktiles_share_mx_scale(1, 2),
+         "two k16 per MX block");
+  EXPECT(k_range_respects_group(0, 2880, kMxBlock), "2880 MX split-K legal");
+
   if (g_fail) {
     std::fprintf(stderr, "test_contract: %d fail\n", g_fail);
     return 1;

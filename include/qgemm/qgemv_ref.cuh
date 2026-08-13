@@ -172,4 +172,33 @@ __global__ void k_qgemm_ref_mx_even_odd_dual_splitk(
   if (acc != 0.f) atomicAdd(&Y[m * N + n], acc);
 }
 
+// MX fused-ref on official A-fragment words. One thread per (m,n).
+// Loads words[n_tile][k_tile][tid] via the PTX owner map. Two k16 tiles
+// share one E8M0 (k_tile/2). Not wgmma — proves the permute on device.
+__global__ void k_qgemm_ref_mx_a_fragment(const float* __restrict__ X,
+                                          const unsigned* __restrict__ words,
+                                          const uint8_t* __restrict__ scales,
+                                          float* __restrict__ Y, int M, int N,
+                                          int K) {
+  const int tid = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+  const int MN = M * N;
+  if (tid >= MN) return;
+  const int m = tid / N;
+  const int n = tid - m * N;
+  const int mx_blocks = K >> 5;
+  const uint8_t* sc =
+      scales + static_cast<size_t>(n) * static_cast<size_t>(mx_blocks);
+  const float* xrow = X + static_cast<size_t>(m) * static_cast<size_t>(K);
+
+  float acc = 0.f;
+  for (int k = 0; k < K; ++k) {
+    const uint8_t nib =
+        dev::unpack_nibble_a_fragment(words, static_cast<size_t>(n),
+                                      static_cast<size_t>(k),
+                                      static_cast<size_t>(K));
+    acc += xrow[k] * dev::mxfp4_elem_ldexp(nib, sc[k >> 5]);
+  }
+  Y[m * N + n] = acc;
+}
+
 }  // namespace qgemm

@@ -104,6 +104,8 @@ Sourced: Machete (Wilkinson 2024), Colfax WGMMA tutorial, CUTLASS ex. 55. Full w
 - [x] Explicit “transpose GEMM” in code: `include/qgemm/kernel_contract.hpp` (`wgmma_view`)  
 - [x] Written 32-bit word diagram for **A-fragment** (not Ampere B-fragment) — [`A_FRAGMENT.md`](A_FRAGMENT.md)  
 - [x] Host pre-shuffle = official PTX table (`a_fragment.hpp`). CuTe codegen still optional later.  
+- [x] Device A-fragment fused-ref (`k_qgemm_ref_mx_a_fragment`)  
+- [x] wgmma SMEM descriptor encode/decode (`wgmma_smem_desc.hpp`). TMA tensormap still open (sm_90).  
 
 Logical `Y = X @ Wᵀ` ↔ issued MMA `Yᵀ = W Xᵀ` (weights = wgmma **A**).
 
