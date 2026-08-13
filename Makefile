@@ -149,6 +149,14 @@ run-stream: $(BUILD)/bench_stream_ideal
 	fi
 	$(BUILD)/bench_stream_ideal 0 $(MEASURED_BW)
 
+# CPU+GPU tests, occupancy table, optional short benches if binaries exist.
+local-peak:
+	@bash scripts/run_local_peak.sh
+
+# compute-sanitizer memcheck; no-op if build/test_qgemv_gpu is missing.
+sanitize:
+	@bash scripts/sanitize_qgemv.sh
+
 arch-info:
 	@echo "CUDA_HOME = $(CUDA_HOME)"
 	@echo "ARCH      = $(ARCH)"
