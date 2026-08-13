@@ -25,7 +25,7 @@ Predictions: [`PREREGISTRATION.md`](PREREGISTRATION.md)
 
 | Rung | Scope | State |
 |---|---|---|
-| **R0** | Measurement harness; baseline study of existing kernels | **in progress** — harness built and validated on sm_86 |
+| **R0** | Measurement harness; baseline study of existing kernels | **in progress** — local peak: harness, pack/probes, full frozen shapes on sm_86, stream ideal; sm_90 + public kernels open |
 | R1 | Decompose the Hopper FP4 gap | not started |
 | R2 | `wgmma`/TMA kernel that closes it | not started |
 | R3 | MoE / grouped variant, DSL comparison | not started |
@@ -47,7 +47,11 @@ project's denominator** — record it in `PREREGISTRATION.md` and pass it to eve
 benchmark explicitly:
 
 ```bash
-./build/bench_cublas 0 124.2 > results/cublas_fp16_sm86.csv
+./build/bench_cublas 0 124.2 all 256 > results/raw/cublas_fp16_sm86.csv
+# optional: [layer|all] [max_M] — layers from docs/SHAPES.md / shapes.hpp
+./build/bench_stream_ideal 0 124.2 all > results/raw/stream_ideal_sm86.csv
+make test-cpu
+bash scripts/run_r0_sm86.sh
 ```
 
 `bench_cublas` refuses to run without a measured denominator rather than falling
@@ -58,6 +62,7 @@ Python analysis environment:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r python/requirements.txt
+.venv/bin/python python/analyze_csv.py results/raw/cublas_fp16_sm86_fullshapes_Mle256.csv
 ```
 
 `torch` is deliberately *not* an R0 dependency — see

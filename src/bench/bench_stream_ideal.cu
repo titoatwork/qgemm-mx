@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "qgemm/formats.cuh"
+#include "qgemm/shapes.hpp"
 #include "qgemm/timing.cuh"
 
 using namespace qgemm;
@@ -37,32 +38,26 @@ __global__ void k_stream_read(const float4* __restrict__ in,
   if (acc == 1234.5678f) sink[0] = acc;
 }
 
-struct Shape {
-  const char* tag;
-  size_t N, K;
-};
-
 int main(int argc, char** argv) {
   const int dev = (argc > 1) ? std::atoi(argv[1]) : 0;
   // Measured read-only bandwidth from ./bandwidth. Same contract as
   // bench_cublas: never fall back to the theoretical peak.
   const double peak_gbps = (argc > 2) ? std::atof(argv[2]) : 0.0;
+  // Optional argv[3]: layer name or "all".
+  const char* layer_filter = (argc > 3) ? argv[3] : "all";
 
   QG_CHECK(cudaSetDevice(dev));
   const DeviceInfo d = query_device(dev);
 
   if (peak_gbps <= 0.0) {
-    std::printf("usage: %s <device> <measured_read_gbps>\n", argv[0]);
+    std::printf("usage: %s <device> <measured_read_gbps> [layer|all]\n",
+                argv[0]);
     std::printf("  run ./bandwidth first and pass its read-only figure.\n");
     std::printf("  refusing to fall back to the theoretical peak -- that would\n");
     std::printf("  inflate every efficiency number this program prints.\n");
     return 2;
   }
 
-  const Shape shapes[] = {
-      {"q/o_proj", 4096, 4096},
-      {"gpt-oss", 2880, 2880},
-  };
   // Formats whose byte counts drive the R0/R1 claims.
   const Format formats[] = {
       Format::FP16, Format::FP8_E4M3, Format::INT4_G128, Format::MXFP4,
@@ -90,9 +85,14 @@ int main(int argc, char** argv) {
 
   const int block = 256;
 
-  for (const auto& s : shapes) {
+  for (size_t li = 0; li < kNumLayerShapes; ++li) {
+    const LayerShape& layer = kLayerShapes[li];
+    if (std::string(layer_filter) != "all" &&
+        std::string(layer_filter) != layer.name) {
+      continue;
+    }
     for (Format fmt : formats) {
-      const size_t wbytes = weight_bytes(fmt, s.N, s.K);
+      const size_t wbytes = weight_bytes(fmt, layer.N, layer.K);
       // Align up to float4 so the stream kernel has a clean vector width;
       // ideal / pct still use the true weight_bytes from formats.cuh.
       const size_t alloc = (wbytes + 15) & ~static_cast<size_t>(15);
@@ -114,8 +114,8 @@ int main(int argc, char** argv) {
       std::fprintf(stderr,
                    "\n%s  %s  N=%zu K=%zu  weights %.2f MB  rotation %d  "
                    "t_ideal %.2f us\n",
-                   s.tag, format_name(fmt), s.N, s.K, wbytes / 1048576.0, rot,
-                   t_ideal);
+                   layer.name, format_name(fmt), layer.N, layer.K,
+                   wbytes / 1048576.0, rot, t_ideal);
       std::fprintf(stderr, "%11s %11s %11s %9s %11s %8s %8s\n", "cold(us)",
                    "hot(us)", "looped(us)", "%ideal", "GB/s", "L2infl",
                    "launch%");
@@ -146,10 +146,11 @@ int main(int argc, char** argv) {
                    cold.median_us, hot.median_us, looped.median_us, pct, gbps,
                    l2_infl, launch_share);
 
-      std::printf("%s,%d,%zu,%zu,%s,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f,%.2f\n",
-                  s.tag, M, s.N, s.K, format_name(fmt), rot, cold.median_us,
-                  hot.median_us, looped.median_us, t_ideal, pct, gbps, l2_infl,
-                  launch_share);
+      std::printf(
+          "%s,%d,%zu,%zu,%s,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f,%.2f\n",
+          layer.name, M, layer.N, layer.K, format_name(fmt), rot,
+          cold.median_us, hot.median_us, looped.median_us, t_ideal, pct, gbps,
+          l2_infl, launch_share);
 
       for (auto* p : bufs) cudaFree(p);
     }

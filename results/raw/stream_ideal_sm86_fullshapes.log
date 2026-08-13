@@ -1,0 +1,135 @@
+=== packed-weight stream ideal (pure traffic) ===
+device      NVIDIA GeForce RTX 3050 6GB Laptop GPU (sm_86, 20 SMs, 1.50 MB L2)
+denominator 124.2 GB/s (measured read-only)
+launch cost 17.613 us/kernel (median, non-graphed)
+
+
+q_o_proj  fp16  N=4096 K=4096  weights 32.00 MB  rotation 2  t_ideal 270.16 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     264.17      264.06      267.01    102.3%       127.0     1.00x     1.1%
+
+q_o_proj  fp8_e4m3  N=4096 K=4096  weights 16.00 MB  rotation 2  t_ideal 135.08 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     133.50      133.25      135.81    101.2%       125.7     1.00x     1.7%
+
+q_o_proj  int4_g128  N=4096 K=4096  weights 8.25 MB  rotation 2  t_ideal 69.65 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      69.89       70.14       72.45     99.7%       123.8     1.00x     3.5%
+
+q_o_proj  mxfp4  N=4096 K=4096  weights 8.50 MB  rotation 2  t_ideal 71.76 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      72.19       72.83       74.88     99.4%       123.5     0.99x     3.6%
+
+q_o_proj  nvfp4  N=4096 K=4096  weights 9.00 MB  rotation 2  t_ideal 75.98 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      76.29       76.16       78.59     99.6%       123.7     1.00x     2.9%
+
+kv_gqa  fp16  N=1024 K=4096  weights 8.00 MB  rotation 2  t_ideal 67.54 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      67.97       68.10       70.02     99.4%       123.4     1.00x     2.9%
+
+kv_gqa  fp8_e4m3  N=1024 K=4096  weights 4.00 MB  rotation 2  t_ideal 33.77 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      35.44       35.33       37.12     95.3%       118.3     1.00x     4.5%
+
+kv_gqa  int4_g128  N=1024 K=4096  weights 2.06 MB  rotation 2  t_ideal 17.41 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      19.58       19.97       24.82     88.9%       110.4     0.98x    21.1%
+
+kv_gqa  mxfp4  N=1024 K=4096  weights 2.12 MB  rotation 2  t_ideal 17.94 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      20.22       20.08       25.47     88.7%       110.2     1.01x    20.6%
+
+kv_gqa  nvfp4  N=1024 K=4096  weights 2.25 MB  rotation 2  t_ideal 19.00 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      22.14       21.76       28.78     85.8%       106.5     1.02x    23.1%
+
+gate_up  fp16  N=14336 K=4096  weights 112.00 MB  rotation 2  t_ideal 945.58 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     915.58      916.20      920.32    103.3%       128.3     1.00x     0.5%
+
+gate_up  fp8_e4m3  N=14336 K=4096  weights 56.00 MB  rotation 2  t_ideal 472.79 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     461.18      460.42      462.34    102.5%       127.3     1.00x     0.3%
+
+gate_up  int4_g128  N=14336 K=4096  weights 28.88 MB  rotation 2  t_ideal 243.78 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     238.72      239.45      241.92    102.1%       126.8     1.00x     1.3%
+
+gate_up  mxfp4  N=14336 K=4096  weights 29.75 MB  rotation 2  t_ideal 251.17 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     245.38      245.59      247.81    102.4%       127.1     1.00x     1.0%
+
+gate_up  nvfp4  N=14336 K=4096  weights 31.50 MB  rotation 2  t_ideal 265.94 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     259.57      261.76      263.42    102.5%       127.2     0.99x     1.5%
+
+down_proj  fp16  N=4096 K=14336  weights 112.00 MB  rotation 2  t_ideal 945.58 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     915.57      916.48      918.27    103.3%       128.3     1.00x     0.3%
+
+down_proj  fp8_e4m3  N=4096 K=14336  weights 56.00 MB  rotation 2  t_ideal 472.79 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     459.14      459.01      462.44    103.0%       127.9     1.00x     0.7%
+
+down_proj  int4_g128  N=4096 K=14336  weights 28.88 MB  rotation 2  t_ideal 243.78 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     237.95      237.93      240.38    102.4%       127.2     1.00x     1.0%
+
+down_proj  mxfp4  N=4096 K=14336  weights 29.75 MB  rotation 2  t_ideal 251.17 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     245.25      245.12      248.19    102.4%       127.2     1.00x     1.2%
+
+down_proj  nvfp4  N=4096 K=14336  weights 31.50 MB  rotation 2  t_ideal 265.94 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     259.46      259.33      261.76    102.5%       127.3     1.00x     0.9%
+
+gpt_oss_2880  fp16  N=2880 K=2880  weights 15.82 MB  rotation 2  t_ideal 133.57 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     132.10      131.84      133.89    101.1%       125.6     1.00x     1.3%
+
+gpt_oss_2880  fp8_e4m3  N=2880 K=2880  weights 7.91 MB  rotation 2  t_ideal 66.78 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      67.46       67.33       69.38     99.0%       123.0     1.00x     2.8%
+
+gpt_oss_2880  int4_g128  N=2880 K=2880  weights 4.08 MB  rotation 2  t_ideal 34.43 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      36.22       36.22       38.89     95.1%       118.1     1.00x     6.9%
+
+gpt_oss_2880  mxfp4  N=2880 K=2880  weights 4.20 MB  rotation 2  t_ideal 35.48 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      36.99       37.38       38.91     95.9%       119.1     0.99x     4.9%
+
+gpt_oss_2880  nvfp4  N=2880 K=2880  weights 4.45 MB  rotation 2  t_ideal 37.57 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+      39.17       39.04       41.34     95.9%       119.1     1.00x     5.3%
+
+fused_qkv  fp16  N=6144 K=4096  weights 48.00 MB  rotation 2  t_ideal 405.25 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     393.86      393.98      396.52    102.9%       127.8     1.00x     0.7%
+
+fused_qkv  fp8_e4m3  N=6144 K=4096  weights 24.00 MB  rotation 2  t_ideal 202.62 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     198.38      198.78      200.58    102.1%       126.9     1.00x     1.1%
+
+fused_qkv  int4_g128  N=6144 K=4096  weights 12.38 MB  rotation 2  t_ideal 104.48 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     103.94      103.55      106.11    100.5%       124.8     1.00x     2.1%
+
+fused_qkv  mxfp4  N=6144 K=4096  weights 12.75 MB  rotation 2  t_ideal 107.64 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     106.88      107.01      109.06    100.7%       125.1     1.00x     2.0%
+
+fused_qkv  nvfp4  N=6144 K=4096  weights 13.50 MB  rotation 2  t_ideal 113.98 us
+   cold(us)     hot(us)  looped(us)    %ideal        GB/s   L2infl  launch%
+     112.77      112.77      115.07    101.1%       125.5     1.00x     2.0%
+
+How to read this:
+  %ideal near 100%  pure traffic saturates the empirical RO peak;
+                     the denominator and timing protocol agree.
+  %ideal << 100%    stream kernel or rotation is not HBM-bound, or
+                     the measured_bw_gbps argument is too high.
+  ideal_us column    theoretical floor at the measured denominator;
+                     compare fused-kernel cold_us against this, not
+                     against the stream time alone.
+

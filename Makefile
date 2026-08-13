@@ -28,7 +28,8 @@ LDLIBS    := -lcublas
 # Host-only tests (g++, no GPU / no nvcc required).
 CXX      ?= g++
 CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
-CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip
+CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
+             $(BUILD)/test_ref_gemm
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal
@@ -53,6 +54,8 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_formats
 	@echo "--- test_pack_roundtrip ---"
 	@$(BUILD)/test_pack_roundtrip
+	@echo "--- test_ref_gemm ---"
+	@$(BUILD)/test_ref_gemm
 	@echo "All CPU tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
@@ -62,6 +65,10 @@ $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
 $(BUILD)/test_pack_roundtrip: tests/test_pack_roundtrip.cpp \
                               include/qgemm/pack.hpp \
                               include/qgemm/correctness.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(BUILD)/test_ref_gemm: tests/test_ref_gemm.cpp include/qgemm/ref_gemm.hpp \
+                        include/qgemm/pack.hpp include/qgemm/correctness.hpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/device_props: src/probe/device_props.cu include/qgemm/*.cuh | $(BUILD)

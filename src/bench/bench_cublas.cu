@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "qgemm/formats.cuh"
+#include "qgemm/shapes.hpp"
 #include "qgemm/timing.cuh"
 
 using namespace qgemm;
@@ -49,11 +50,6 @@ __global__ void fill_half(__half* p, size_t n, float v) {
   size_t i = blockIdx.x * static_cast<size_t>(blockDim.x) + threadIdx.x;
   if (i < n) p[i] = __float2half(v);
 }
-
-struct Shape {
-  const char* tag;
-  size_t N, K;
-};
 
 int main(int argc, char** argv) {
   const int dev = (argc > 1) ? std::atoi(argv[1]) : 0;
@@ -76,16 +72,17 @@ int main(int argc, char** argv) {
   CUBLAS_CHECK(cublasCreate(&h));
   CUBLAS_CHECK(cublasSetMathMode(h, CUBLAS_DEFAULT_MATH));
 
-  const Shape shapes[] = {
-      {"q/o_proj", 4096, 4096},
-      {"gpt-oss", 2880, 2880},
-  };
-  const int Ms[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
+  // Optional filter: argv[3] = layer name (e.g. q_o_proj) or "all" (default).
+  // Optional argv[4] = max M to run (default full kMSweep).
+  const char* layer_filter = (argc > 3) ? argv[3] : "all";
+  const size_t max_M =
+      (argc > 4) ? static_cast<size_t>(std::atoll(argv[4])) : kMSweep[kNumMSweep - 1];
 
   std::fprintf(stderr, "=== cuBLAS FP16 baseline + harness validation ===\n");
   std::fprintf(stderr, "device      %s (sm_%d%d, %d SMs, %.2f MB L2)\n", d.name.c_str(),
               d.cc_major, d.cc_minor, d.sm_count, d.l2_bytes / 1048576.0);
   std::fprintf(stderr, "denominator %.1f GB/s (measured read-only)\n", peak_gbps);
+  std::fprintf(stderr, "layers      %s  max_M %zu\n", layer_filter, max_M);
 
   const TimingResult lo = measure_launch_overhead();
   std::fprintf(stderr, "launch cost %.3f us/kernel (median, non-graphed)\n\n",
@@ -95,15 +92,21 @@ int main(int argc, char** argv) {
               "looped_cold_us,pct_of_ideal,achieved_gbps,l2_inflation,"
               "launch_share\n");
 
-  for (const auto& s : shapes) {
-    const size_t wbytes = weight_bytes(Format::FP16, s.N, s.K);
+  for (size_t li = 0; li < kNumLayerShapes; ++li) {
+    const LayerShape& layer = kLayerShapes[li];
+    if (std::string(layer_filter) != "all" &&
+        std::string(layer_filter) != layer.name) {
+      continue;
+    }
+
+    const size_t wbytes = weight_bytes(Format::FP16, layer.N, layer.K);
     const int rot = rotation_count(wbytes, d.l2_bytes, 2.0);
 
     // Weight buffers: `rot` distinct copies so a full rotation exceeds L2.
     std::vector<__half*> W(rot, nullptr);
     for (int i = 0; i < rot; ++i) {
-      QG_CHECK(cudaMalloc(&W[i], s.N * s.K * sizeof(__half)));
-      const size_t n = s.N * s.K;
+      QG_CHECK(cudaMalloc(&W[i], layer.N * layer.K * sizeof(__half)));
+      const size_t n = layer.N * layer.K;
       fill_half<<<static_cast<unsigned>((n + 255) / 256), 256>>>(
           W[i], n, 0.01f * static_cast<float>(i + 1));
     }
@@ -111,27 +114,30 @@ int main(int argc, char** argv) {
 
     std::fprintf(stderr, "\n%s  N=%zu K=%zu  weights %.2f MB  rotation %d buffers "
                  "(%.1f MB total vs %.1f MB L2)\n",
-                 s.tag, s.N, s.K, wbytes / 1048576.0, rot,
+                 layer.name, layer.N, layer.K, wbytes / 1048576.0, rot,
                  rot * wbytes / 1048576.0, d.l2_bytes / 1048576.0);
     std::fprintf(stderr, "%6s %11s %11s %11s %9s %11s %9s %8s\n", "M",
                  "cold(us)", "hot(us)", "looped(us)", "%ideal", "GB/s",
                  "L2infl", "launch%");
 
-    for (int M : Ms) {
+    for (size_t mi = 0; mi < kNumMSweep; ++mi) {
+      const size_t M = kMSweep[mi];
+      if (M > max_M) break;
+
       __half *X = nullptr, *Y = nullptr;
-      QG_CHECK(cudaMalloc(&X, static_cast<size_t>(M) * s.K * sizeof(__half)));
-      QG_CHECK(cudaMalloc(&Y, static_cast<size_t>(M) * s.N * sizeof(__half)));
+      QG_CHECK(cudaMalloc(&X, M * layer.K * sizeof(__half)));
+      QG_CHECK(cudaMalloc(&Y, M * layer.N * sizeof(__half)));
       {
-        const size_t n = static_cast<size_t>(M) * s.K;
+        const size_t n = M * layer.K;
         fill_half<<<static_cast<unsigned>((n + 255) / 256), 256>>>(X, n, 0.02f);
       }
-      QG_CHECK(cudaMemset(Y, 0, static_cast<size_t>(M) * s.N * sizeof(__half)));
+      QG_CHECK(cudaMemset(Y, 0, M * layer.N * sizeof(__half)));
       QG_CHECK(cudaDeviceSynchronize());
 
       const float alpha = 1.0f, beta = 0.0f;
-      const int m = static_cast<int>(s.N);
-      const int n = M;
-      const int k = static_cast<int>(s.K);
+      const int m = static_cast<int>(layer.N);
+      const int n = static_cast<int>(M);
+      const int k = static_cast<int>(layer.K);
 
       // Y_rm[M,N] = X_rm[M,K] @ W_rm[N,K]^T
       //   == C_cm[N,M] = op_T(W_cm[K,N]) * op_N(X_cm[K,M])
@@ -151,7 +157,7 @@ int main(int argc, char** argv) {
       const TimingResult hot    = time_graphed(gemm_hot, 10, 40, inner);
       const TimingResult looped = time_looped(gemm,      10, 40, inner);
 
-      const size_t moved = total_bytes(Format::FP16, M, s.N, s.K);
+      const size_t moved = total_bytes(Format::FP16, M, layer.N, layer.K);
       const double pct  = pct_of_ideal(cold.median_us, moved, peak_gbps);
       const double gbps = achieved_gbps(moved, cold.median_us);
       const double l2_infl = cold.median_us / hot.median_us;
@@ -159,13 +165,14 @@ int main(int argc, char** argv) {
           100.0 * (looped.median_us - cold.median_us) / looped.median_us;
 
       std::fprintf(stderr,
-                   "%6d %11.2f %11.2f %11.2f %8.1f%% %11.1f %8.2fx %7.1f%%\n",
+                   "%6zu %11.2f %11.2f %11.2f %8.1f%% %11.1f %8.2fx %7.1f%%\n",
                    M, cold.median_us, hot.median_us, looped.median_us, pct,
                    gbps, l2_infl, launch_share);
 
-      std::printf("%s,%d,%zu,%zu,%d,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f,%.2f\n",
-                  s.tag, M, s.N, s.K, rot, cold.median_us, hot.median_us,
-                  looped.median_us, pct, gbps, l2_infl, launch_share);
+      std::printf("%s,%zu,%zu,%zu,%d,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f,%.2f\n",
+                  layer.name, M, layer.N, layer.K, rot, cold.median_us,
+                  hot.median_us, looped.median_us, pct, gbps, l2_infl,
+                  launch_share);
 
       cudaFree(X);
       cudaFree(Y);
