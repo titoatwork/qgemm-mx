@@ -10,9 +10,9 @@
 
 | Rung | State | Notes |
 |------|--------|------|
-| **R0 Instrument** | **In progress** | Harness + FP16 cuBLAS validation on sm_86 done. Pack/probes/stream/CI/analysis pending. sm_90 + public baselines **not started** |
+| **R0 Instrument** | **In progress (local peak largely landed)** | Harness, pack/probes, stream ideal, analysis, CPU tests green on sm_86. **sm_90 probe + public kernel rebench + L2 proof still open** |
 | R1 Quantify | Not started | Needs sm_90 + baselines |
-| R2 Close | Not started | Blocked on R1 go/no-go |
+| R2 Close | Not started | Blocked on R1 go/no-go + D1 layout complete |
 | R3 Extend | Not started | |
 
 ---
@@ -21,8 +21,8 @@
 
 | Device | Probe BW | Harness validated | ncu counters | Exclusive runs |
 |--------|----------|-------------------|--------------|----------------|
-| sm_86 RTX 3050 laptop | **124.2 GB/s** RO | **Yes** (FP16 M=1 ~101% ideal) | TBD gate | N/A (local) |
-| sm_90 H100 DGX | **UNMEASURED** | No | TBD gate | TBD |
+| sm_86 RTX 3050 laptop | **124.2 GB/s** RO | **Yes** (FP16 M=1 ~101% ideal) | **FAIL** G2 | N/A (local) |
+| sm_90 H100 DGX | **UNMEASURED** | No | UNKNOWN G3 | TBD |
 
 ---
 
@@ -35,10 +35,11 @@ sm_86 harness outcomes recorded 2026-08-12. sm_90 predictions incomplete until p
 
 ## Blockers (need human / external)
 
-1. DGX H100 access for authoritative R0/R1  
-2. Nsight counter permissions (laptop Windows ACL + DGX policy)  
-3. Upstream demand validation (vLLM / SGLang / torchao)  
-4. Git: reconcile local main with origin if histories diverged  
+1. **DGX H100** — `make ARCH=sm_90 run-probe` + fill PREREGISTRATION  
+2. **ncu on laptop** — Windows GPU Performance Counters ACL (G2 FAIL)  
+3. **ncu on DGX** — admin policy  
+4. **Upstream demand** ping (G6)  
+5. **GitHub PAT `workflow` scope** — if push of `.github/workflows/` is rejected  
 
 ---
 
@@ -47,15 +48,16 @@ sm_86 harness outcomes recorded 2026-08-12. sm_90 predictions incomplete until p
 | Date | Milestone |
 |------|-----------|
 | 2026-08-12 | R0 harness, probes, env capture, preregistration, cuBLAS FP16 sm_86 |
-| 2026-08-13 | Master execution plan (peak standard) + living governance docs |
-| 2026-08-13 | CPU CI workflow (`.github/workflows/cpu-ci.yml`) + `CONTRIBUTING.md` |
-| 2026-08-13 | G2 ncu gate on sm_86: **FAIL** (`ERR_NVGPUCTRPERM`) — see `docs/GATES.md` |
+| 2026-08-13 | Peak master plan + governance docs pushed |
+| 2026-08-13 | Host pack/shapes/probes + `make test-cpu` OK |
+| 2026-08-13 | Stream-ideal bench + analyze/plot scripts |
+| 2026-08-13 | G2 ncu gate FAIL logged; CONTRIBUTING |
 
 ---
 
 ## Next actions (priority)
 
-1. Land host pack + structured probes + CPU tests (`make test-cpu`)  
-2. Stream-ideal bench + analysis scripts  
-3. User: fix ncu counters on laptop (G2) + DGX probe when available  
-4. Upstream demand check (G6) when ready  
+1. User: fix G2 ncu OR accept profiler-free methodology  
+2. User: DGX G1 probe session  
+3. Public baseline scaffolding (Marlin/etc.) when torch/GPU ready  
+4. Complete D1 layout derivation study before any R2 kernel  

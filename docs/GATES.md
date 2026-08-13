@@ -8,7 +8,7 @@ Gates are **binary**. Do not pretend R0/R1 on sm_90 is complete while any gate i
 | G2 | Nsight counters **sm_86** | `scripts/check_ncu_gate.sh` | **FAIL** | 2026-08-13: `STATUS=FAIL` `ERR_NVGPUCTRPERM` — log `results/env/ncu_gate.txt` |
 | G3 | Nsight counters **sm_90** | Same on DGX; may need admin | **UNKNOWN** | Fallback: BW from timing×bytes (weaker) — design in if red |
 | G4 | L2 flush/rotation proven where L2 > weights | Hot vs cold diverge on H100 | **RED** | sm_86 cannot prove this (L2 1.5 MB) |
-| G5 | Git `main` = origin, pushable | `git status` clean tracking | **YELLOW** | Diverged histories observed 2026-08-13 |
+| G5 | Git `main` = origin, pushable | `git status` clean tracking | **GREEN** | Reset to origin 2026-08-13; subsequent commits pushed |
 | G6 | Upstream interest | Maintainer/thread says wanted or not | **RED** | Ask before large PR investment |
 | G7 | Scope freeze | §4.3 non-goals not reopened | **GREEN** | Enforced by review |
 
