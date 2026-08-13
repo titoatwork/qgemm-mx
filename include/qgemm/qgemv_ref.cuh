@@ -128,4 +128,48 @@ __global__ void k_qgemm_ref_mx_even_odd_dual(
   Y[m * N + n] = acc;
 }
 
+// Dual-nibble MX + split-K. blockIdx.y = K-split. Snap to 32-element MX blocks.
+// Caller MUST zero Y. words is even/odd layout.
+__global__ void k_qgemm_ref_mx_even_odd_dual_splitk(
+    const float* __restrict__ X, const unsigned* __restrict__ words,
+    const uint8_t* __restrict__ scales, float* __restrict__ Y, int M, int N,
+    int K, int split_k) {
+  if (split_k < 1) return;
+  const int sk = static_cast<int>(blockIdx.y);
+  if (sk >= split_k) return;
+
+  const int tid = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+  const int MN = M * N;
+  if (tid >= MN) return;
+  const int m = tid / N;
+  const int n = tid - m * N;
+
+  const int nwords = K >> 3;
+  const int mx_blocks = K >> 5;
+  const int chunk0 = (mx_blocks * sk) / split_k;
+  const int chunk1 = (mx_blocks * (sk + 1)) / split_k;
+  const int wi0 = chunk0 * 4;  // 32 elems = 4 even/odd words
+  const int wi1 = chunk1 * 4;
+
+  const unsigned* row =
+      words + static_cast<size_t>(n) * static_cast<size_t>(nwords);
+  const uint8_t* sc =
+      scales + static_cast<size_t>(n) * static_cast<size_t>(mx_blocks);
+  const float* xrow = X + static_cast<size_t>(m) * static_cast<size_t>(K);
+
+  float acc = 0.f;
+  for (int wi = wi0; wi < wi1; ++wi) {
+    uint8_t ev[4], od[4];
+    dev::dual_nibbles_from_word(row[wi], ev, od);
+    const int k0 = wi << 3;
+    for (int i = 0; i < 4; ++i) {
+      const int ke = k0 + (i << 1);
+      const int ko = ke + 1;
+      acc += xrow[ke] * dev::mxfp4_elem_ldexp(ev[i], sc[ke >> 5]);
+      acc += xrow[ko] * dev::mxfp4_elem_ldexp(od[i], sc[ko >> 5]);
+    }
+  }
+  if (acc != 0.f) atomicAdd(&Y[m * N + n], acc);
+}
+
 }  // namespace qgemm

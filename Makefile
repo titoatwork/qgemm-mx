@@ -120,7 +120,8 @@ $(BUILD)/test_even_odd_gpu: tests/test_even_odd_gpu.cu include/qgemm/permute.hpp
 
 test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
           $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode \
-          $(BUILD)/test_even_odd_gpu $(BUILD)/test_dual_nibble
+          $(BUILD)/test_even_odd_gpu $(BUILD)/test_dual_nibble \
+          $(BUILD)/test_dual_splitk
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
@@ -133,7 +134,13 @@ test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
 	@$(BUILD)/test_even_odd_gpu
 	@echo "--- test_dual_nibble ---"
 	@$(BUILD)/test_dual_nibble
+	@echo "--- test_dual_splitk ---"
+	@$(BUILD)/test_dual_splitk
 	@echo "GPU fused-ref tests passed."
+
+$(BUILD)/test_dual_splitk: tests/test_dual_splitk.cu include/qgemm/qgemv_ref.cuh \
+                           include/qgemm/permute.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 $(BUILD)/test_dual_nibble: tests/test_dual_nibble.cu include/qgemm/qgemv_ref.cuh \
                            include/qgemm/permute.hpp include/qgemm/pack.hpp | $(BUILD)
