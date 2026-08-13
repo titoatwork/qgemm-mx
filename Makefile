@@ -8,6 +8,7 @@
 #   make ARCH=sm_90      build for Hopper
 #   make probe           just the device/bandwidth probes
 #   make run-probe       build and run both probes
+#   make test-cpu        host unit tests (g++, no GPU)
 #   make clean
 
 CUDA_HOME ?= /usr/local/cuda-12.6
@@ -24,11 +25,17 @@ NVCCFLAGS := -O3 -std=c++17 -arch=$(ARCH) -lineinfo --expt-relaxed-constexpr \
              -Xcompiler -Wall $(INC)
 LDLIBS    := -lcublas
 
+# Host-only tests (g++, no GPU / no nvcc required).
+CXX      ?= g++
+CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
+CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip
+
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal
 ALL     := $(PROBES) $(BENCHES)
 
-.PHONY: all probe bench bench_cublas bench_stream run-probe run-stream clean arch-info
+.PHONY: all probe bench bench_cublas bench_stream run-probe run-stream clean \
+        arch-info test-cpu
 
 all: $(ALL)
 
@@ -39,6 +46,23 @@ bench_stream: $(BUILD)/bench_stream_ideal
 
 $(BUILD):
 	@mkdir -p $(BUILD)
+
+# CPU unit tests: formats math, pack/unpack roundtrip, structured probes.
+test-cpu: $(CPU_TESTS)
+	@echo "--- test_formats ---"
+	@$(BUILD)/test_formats
+	@echo "--- test_pack_roundtrip ---"
+	@$(BUILD)/test_pack_roundtrip
+	@echo "All CPU tests passed."
+
+$(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
+                       include/qgemm/pack.hpp include/qgemm/shapes.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(BUILD)/test_pack_roundtrip: tests/test_pack_roundtrip.cpp \
+                              include/qgemm/pack.hpp \
+                              include/qgemm/correctness.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/device_props: src/probe/device_props.cu include/qgemm/*.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
