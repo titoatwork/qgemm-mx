@@ -8,6 +8,7 @@ achieved_gbps are averaged when present.
 Usage:
   python/analyze_csv.py results/cublas_fp16_sm86.csv
   python/analyze_csv.py results/raw/stream_ideal_sm86.csv --by shape format
+  python/analyze_csv.py results/raw/stream_ideal_sm86.csv --by-shape
 """
 
 from __future__ import annotations
@@ -36,6 +37,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="extra group-by columns before M (e.g. shape format)",
     )
+    p.add_argument(
+        "--by-shape",
+        action="store_true",
+        help="group by the shape column (composes with --by; still groups by M)",
+    )
     args = p.parse_args(argv)
 
     if not args.csv.is_file():
@@ -51,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     group_cols = list(args.by or [])
+    if args.by_shape and "shape" not in group_cols:
+        group_cols.insert(0, "shape")
     # Prefer sensible defaults when present and --by not given.
     if not group_cols:
         for c in ("shape", "format"):

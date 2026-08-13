@@ -1,0 +1,4 @@
+# Optional extras for python pack / light analysis.
+# qgemm_pack.py is stdlib-only; numpy is handy for ndarray I/O.
+# No torch or triton. Full plotting stack: requirements.txt.
+numpy>=1.26
