@@ -82,6 +82,29 @@
 - Remote: `origin` → `github.com/titoatwork/qgemm-mx.git`
 - Local history may be **diverged** from `origin/main` (duplicate commit messages, different SHAs). **Reconcile before force assumptions** — prefer merge/rebase, no force-push unless user approves.
 
+### 2.6 Current implementation map (landed after plan creation)
+
+Snapshot of what exists **now**. §2.2 is the original inventory — do not treat it as the live file list. Development is **local-only** (`docs/LOCAL_WORKFLOW.md`); no routine push.
+
+The fused-ref kernel is a **correctness** path (one thread per output, sequential nibble order). It is **not** the R2 `wgmma`/TMA kernel and is **not** a SOTA claim. `src/kernels/` remains empty by design.
+
+| Path | Role |
+|------|------|
+| `include/qgemm/occupancy.hpp` | Host CTA / wave-quant arithmetic; `make test-cpu` prints the table |
+| `include/qgemm/dequant_device.cuh` | Device decode matching `pack.hpp` (keep in sync) |
+| `include/qgemm/qgemv_ref.cuh` | Fused-ref GEMM — correctness, not SOTA |
+| `include/qgemm/pack.hpp` | Host pack/unpack + reference dequant (INT4 / MX / NV) |
+| `include/qgemm/shapes.hpp` · `correctness.hpp` · `ref_gemm.hpp` | Frozen shapes, probes, host FP32 GEMM |
+| `src/bench/bench_stream_ideal.cu` | Packed-weight stream → `t_ideal` |
+| `src/bench/bench_naive_dequant.cu` | Dequant-then-cuBLAS sanity floor (never headline) |
+| `src/bench/bench_qgemv_ref.cu` | Fused-ref timing (waterfall step only) |
+| `tests/test_occupancy.cpp` · `tests/test_qgemv_gpu.cu` | Occupancy table; GPU fused-ref vs host (`make test-gpu`) |
+| `python/occupancy_table.py` | Same occupancy numbers as the C++ test |
+| `docs/OCCUPANCY.md` | Published occupancy / split-K table (**DONE**) |
+| `docs/D1_LAYOUT_DERIVATION.md` | Layout study; occupancy done, nibble/`wgmma` still open |
+
+Reproduce occupancy: `make test-cpu` or `python3 python/occupancy_table.py`. Full table: [`OCCUPANCY.md`](OCCUPANCY.md).
+
 ---
 
 ## 3. Target repository layout (peak end-state)
@@ -384,6 +407,7 @@ A deliverable is not done if:
 | Date | Change |
 |------|--------|
 | 2026-08-13 | Initial peak plan from live repo + v2.0 + review |
+| 2026-08-13 | §2.6 current implementation map (occupancy, fused-ref, benches) |
 
 ---
 

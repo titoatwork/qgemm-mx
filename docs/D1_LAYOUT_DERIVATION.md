@@ -3,6 +3,16 @@
 **Status:** Skeleton for study → complete **before** R2 PTX.  
 **Rule:** Weight layout is an **output** of the dequant instruction sequence + datapath fragment requirements. Cite Marlin/Machete as prior art; state derive vs adapt per element.
 
+| Work item | State |
+|-----------|--------|
+| Occupancy / CTA table (tile N=256, no split-K) | **DONE** — [`OCCUPANCY.md`](OCCUPANCY.md), `occupancy.hpp`, `make test-cpu` |
+| Dequant instruction sequence (cost model) | Notes only |
+| Nibble order / 32-bit word diagram | **Open** (checkboxes below are honest) |
+| sm_86 `mma.sync` fragment map | **Open** |
+| sm_90 TMA + `wgmma` layout | **Open** |
+| Split-K vs scale-group boundaries | **Open** |
+| K=2880 sequential-pack correctness | MX fused-ref **done**; R2 device pack **open** |
+
 ## 1. Goal
 
 Produce a 32-bit word diagram and global-load story for:
@@ -49,9 +59,9 @@ device-friendly:     0 2 4 6 1 3 5 7  (even then odd — enables dual-nibble SIM
 - Marlin’s answer: pack so one 128-bit load / thread is already in fragment order.  
 - **Our job:** re-derive for MX/NV block scales (group boundaries ≠ 128 always).  
 
-CTA count at M=1, N=4096, tile N=256 → **16 CTAs**. On 20 SMs (3050) nearly full; on **132 SMs (H100) ~12%** → split-K mandatory on sm_90.
+- [x] **Occupancy / CTA table (paper arithmetic)** — **DONE.** Tile N=256, one CTA per N-tile, no split-K. M=1, N=4096 → **16 CTAs**: 20 SMs (3050) nearly full; **132 SMs (H100) ~12%** → split-K mandatory on sm_90. Every frozen layer is H100-starved without split-K. Table: [`OCCUPANCY.md`](OCCUPANCY.md). Code: `include/qgemm/occupancy.hpp`. Reproduce: `make test-cpu` or `python3 python/occupancy_table.py`.
 
-Full table: [`OCCUPANCY.md`](OCCUPANCY.md). Every frozen layer is H100-starved without split-K.
+This table is **not** a fragment map. Steps below remain open.
 
 ### Step D — sm_90 TMA + `wgmma`
 
@@ -73,7 +83,8 @@ Full table: [`OCCUPANCY.md`](OCCUPANCY.md). Every frozen layer is H100-starved w
 
 ## 3. Non-128-aligned shapes
 
-- [ ] K=N=2880 path: correctness first, no silent pad that breaks quant blocks  
+- [x] Sequential-pack MXFP4 accepts K=2880; INT4-g128 rejects — host + `make test-gpu` (`test_gptoss_align`)  
+- [ ] R2 **device-pack** K=N=2880 path: correctness first, no silent pad that breaks quant blocks  
 - [ ] Link to production pain (Marlin 128-align)  
 
 ## 4. Sign-off

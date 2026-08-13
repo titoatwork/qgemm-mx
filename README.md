@@ -17,6 +17,7 @@ be recovered.
 Full brief: [`docs/PROJECT-v2.0-fp4-hopper.md`](docs/PROJECT-v2.0-fp4-hopper.md)  
 **Master execution plan (peak standard):** [`docs/MASTER_EXECUTION_PLAN.md`](docs/MASTER_EXECUTION_PLAN.md)  
 Living status: [`docs/STATUS.md`](docs/STATUS.md) · Gates: [`docs/GATES.md`](docs/GATES.md) · Shapes: [`docs/SHAPES.md`](docs/SHAPES.md)  
+Occupancy table: [`docs/OCCUPANCY.md`](docs/OCCUPANCY.md) · Local workflow: [`docs/LOCAL_WORKFLOW.md`](docs/LOCAL_WORKFLOW.md)  
 Predictions: [`PREREGISTRATION.md`](PREREGISTRATION.md)
 
 ---
@@ -25,13 +26,18 @@ Predictions: [`PREREGISTRATION.md`](PREREGISTRATION.md)
 
 | Rung | Scope | State |
 |---|---|---|
-| **R0** | Measurement harness; baseline study of existing kernels | **in progress** — local peak: harness, pack/probes, full frozen shapes on sm_86, stream ideal; sm_90 + public kernels open |
+| **R0** | Measurement harness; host pack; occupancy math; fused-ref GPU correctness | **local peak** — harness, pack/probes, occupancy table, full frozen shapes on sm_86 (stream + cuBLAS), naive dequant floor, fused-ref matches host (incl. MX K=2880). **sm_90 + public kernels still open** |
 | R1 | Decompose the Hopper FP4 gap | not started |
-| R2 | `wgmma`/TMA kernel that closes it | not started |
+| R2 | `wgmma`/TMA kernel that closes it | not started — fused-ref is **not** this kernel |
 | R3 | MoE / grouped variant, DSL comparison | not started |
 
-No dequantization kernel exists yet, by design. R0 comes first because until the
-harness is trustworthy, no number the project produces means anything.
+A **fused-ref** kernel (`include/qgemm/qgemv_ref.cuh`) exists for **correctness
+only**: one thread per output, sequential nibble order matching `pack.hpp`, no
+Tensor Cores. It proves the encodings on device. It is **not** a performance
+claim and must never be cited as SOTA. The R2 `wgmma`/TMA path has not started.
+
+**Local-only.** Work stays on this machine. Do not `git push` unless the owner
+asks for a curated public drop — see [`docs/LOCAL_WORKFLOW.md`](docs/LOCAL_WORKFLOW.md).
 
 ---
 
@@ -39,24 +45,35 @@ harness is trustworthy, no number the project produces means anything.
 
 ```bash
 make ARCH=sm_86 run-probe          # dev box; use ARCH=sm_90 on H100
+make test-cpu                      # formats, pack, ref GEMM, occupancy table
+make test-gpu                      # fused-ref vs host (correctness, not perf)
 ```
 
-That captures the environment, dumps device constants and roofline predictions,
-and measures the empirical bandwidth. **The read-only figure it prints is the
-project's denominator** — record it in `PREREGISTRATION.md` and pass it to every
-benchmark explicitly:
+`run-probe` captures the environment, dumps device constants and roofline
+predictions, and measures the empirical bandwidth. **The read-only figure it
+prints is the project's denominator** — record it in `PREREGISTRATION.md` and
+pass it to every benchmark explicitly:
 
 ```bash
 ./build/bench_cublas 0 124.2 all 256 > results/raw/cublas_fp16_sm86.csv
 # optional: [layer|all] [max_M] — layers from docs/SHAPES.md / shapes.hpp
 ./build/bench_stream_ideal 0 124.2 all > results/raw/stream_ideal_sm86.csv
-make test-cpu
 bash scripts/run_r0_sm86.sh
 ```
 
 `bench_cublas` refuses to run without a measured denominator rather than falling
 back to the spec-sheet peak, because that fallback silently inflates every
 efficiency claim downstream.
+
+Wave-quantization / CTA occupancy (paper arithmetic, tile N=256, no split-K) is
+a testable artifact, not a slide claim. Every frozen layer starves H100 without
+split-K; the laptop hides that except on `kv_gqa`. Full table:
+[`docs/OCCUPANCY.md`](docs/OCCUPANCY.md). Reproduce:
+
+```bash
+make test-cpu                      # prints the occupancy CSV
+python3 python/occupancy_table.py  # same numbers
+```
 
 Python analysis environment:
 
@@ -105,17 +122,26 @@ measurement itself will tell you.
 ## Layout
 
 ```
-include/qgemm/timing.cuh    measurement primitives (rotation, graphs, stats)
-include/qgemm/formats.cuh   byte accounting for FP16/FP8/INT4/MXFP4/NVFP4
-src/probe/device_props.cu   device constants, ridge point, wave-quantization
-                            and L2-residency checks, incl. H100 projections
-src/probe/bandwidth.cu      empirical peak BW -> the project denominator
-src/bench/bench_cublas.cu   FP16 baseline; validates the harness against a
-                            known-good reference
-src/kernels/                (empty — R2)
-scripts/env_capture.sh      per-run environment record
-results/                    raw CSVs, committed
-docs/                       brief, review, positioning, and the original v1.0
+include/qgemm/timing.cuh         measurement primitives (rotation, graphs, stats)
+include/qgemm/formats.cuh        byte accounting for FP16/FP8/INT4/MXFP4/NVFP4
+include/qgemm/pack.hpp           host pack/unpack + reference dequant
+include/qgemm/occupancy.hpp      CTA / wave-quant arithmetic (host, testable)
+include/qgemm/dequant_device.cuh device decode; keep in sync with pack.hpp
+include/qgemm/qgemv_ref.cuh      fused-ref GEMM — correctness, not SOTA
+include/qgemm/ref_gemm.hpp       host FP32 Y = X @ Wᵀ
+include/qgemm/shapes.hpp         frozen layers + M sweep
+include/qgemm/correctness.hpp    structured probes (one-hot, primes, ramp)
+src/probe/device_props.cu        device constants, ridge, L2 / wave checks
+src/probe/bandwidth.cu           empirical peak BW → the project denominator
+src/bench/bench_cublas.cu        FP16 baseline; harness vs a known-good ref
+src/bench/bench_stream_ideal.cu  packed-weight stream → t_ideal
+src/bench/bench_naive_dequant.cu dequant-then-cuBLAS sanity floor (not headline)
+src/bench/bench_qgemv_ref.cu     fused-ref timing (waterfall step, not SOTA)
+src/kernels/                     (empty — R2 wgmma/TMA)
+tests/                           host + GPU fused-ref (`make test-cpu` / `test-gpu`)
+scripts/env_capture.sh           per-run environment record
+results/                         raw CSVs, committed
+docs/                            thesis, plan, STATUS, OCCUPANCY, LOCAL_WORKFLOW
 ```
 
 ---
