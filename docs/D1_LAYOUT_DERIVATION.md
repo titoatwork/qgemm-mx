@@ -6,8 +6,8 @@
 | Work item | State |
 |-----------|--------|
 | Occupancy / CTA table (tile N=256, no split-K) | **DONE** — [`OCCUPANCY.md`](OCCUPANCY.md), `occupancy.hpp`, `make test-cpu` |
-| Dequant instruction sequence (cost model) | Notes only |
-| Nibble order / 32-bit word diagram | **Open** (checkboxes below are honest) |
+| Dequant instruction sequence (cost model) | **INT4 0x6400 + MX ldexp/expfield proven** (`test_bittrick_splitk`, `test_mx_decode`) |
+| Nibble order / 32-bit word diagram | **Sequential word DONE** (below). Device even/odd pre-shuffle **open** |
 | sm_86 `mma.sync` fragment map | **Open** |
 | sm_90 TMA + `wgmma` layout | **Open** |
 | Split-K vs scale-group boundaries | **Open** |
@@ -48,9 +48,33 @@ sequential indices:  0 1 2 3 4 5 6 7  (within 8 consecutive 4-bit elems / 32-bit
 device-friendly:     0 2 4 6 1 3 5 7  (even then odd — enables dual-nibble SIMD paths)
 ```
 
-- [ ] Confirm exact order against `lop3` / PTX sequence we implement  
-- [ ] Draw 32-bit word diagram once sequence is frozen  
-- [ ] Offline permute at pack time so global load delivers per-thread fragments  
+**Sequential 32-bit word (`pack.hpp` / fused-ref) — DONE, authoritative for R0/R1:**
+
+```
+ byte          0              1              2              3
+        ┌──────┴──────┐┌──────┴──────┐┌──────┴──────┐┌──────┴──────┐
+ bits   7..4    3..0    7..4    3..0    7..4    3..0    7..4    3..0
+ k      1       0       3       2       5       4       7       6
+        high    low     high    low     high    low     high    low
+```
+
+Along a row of W[N,K], element index `lin = n*K + k`. Byte `lin/2` holds **low nibble = even k**, **high nibble = odd k**.
+
+This is **not** a `wgmma` A-fragment. It is the correctness layout. R2 must **offline-permute** into even/odd (or CuTe-derived) order so one 32/128-bit load feeds two FP16 lanes without extra smem gathers.
+
+**Hopper A-operand view (logical, not yet CuTe):** after `Yᵀ = W Xᵀ`, a thread that owns A-elements corresponding to weight rows `n` and reduction `k` wants consecutive K for MMA K-tiles. Sequential K-packing is *friendly to K-scan fused-ref* and *hostile to wgmma A* unless reshuffled so MMA K-vectors are contiguous in the loaded word.
+
+```
+  logical W row n:  k=0 k=1 k=2 k=3 k=4 k=5 k=6 k=7 ...
+  sequential pack:  [k0 k1][k2 k3][k4 k5][k6 k7]   ← our R0
+  even/odd word:    [k0 k2 k4 k6 | k1 k3 k5 k7]     ← typical dual-convert
+  wgmma A fragment: architecture-defined subset of (n,k) per lane
+                    (fill with CuTe / PTX doc before R2 codegen)
+```
+
+- [x] Sequential 32-bit word diagram (R0 pack)  
+- [ ] Confirm even/odd against a `lop3` sequence we implement  
+- [ ] Offline permute + **A-fragment** CuTe/PTX diagram (R2)  
 
 ### Step C — sm_86 fragment mapping (`mma.sync`)
 

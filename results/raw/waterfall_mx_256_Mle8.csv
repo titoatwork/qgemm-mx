@@ -1,0 +1,13 @@
+path,M,N,K,format,graphed_us,pct_of_ideal_mx
+stream,1,256,256,mxfp4,3.5800,7.8302
+dequant_cublas,1,256,256,mxfp4,190.7200,0.1470
+fused_ref,1,256,256,mxfp4,681.2160,0.0412
+stream,2,256,256,mxfp4,8.9600,3.1286
+dequant_cublas,2,256,256,mxfp4,206.3360,0.1359
+fused_ref,2,256,256,mxfp4,456.9600,0.0613
+stream,4,256,256,mxfp4,7.5520,3.7119
+dequant_cublas,4,256,256,mxfp4,203.0080,0.1381
+fused_ref,4,256,256,mxfp4,456.7040,0.0614
+stream,8,256,256,mxfp4,6.4000,4.3800
+dequant_cublas,8,256,256,mxfp4,202.2400,0.1386
+fused_ref,8,256,256,mxfp4,127.7440,0.2194

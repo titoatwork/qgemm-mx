@@ -50,9 +50,49 @@ __device__ __forceinline__ float e2m1_decode(uint8_t code) {
   return (c & 8) ? -mag : mag;
 }
 
+// FP16 bit patterns for |E2M1| codes 0..7. Sign applied separately.
+// 0, 0.5, 1, 1.5, 2, 3, 4, 6  as IEEE fp16.
+__device__ __forceinline__ unsigned short e2m1_pos_fp16_bits(unsigned mag_code) {
+  const unsigned short tab[8] = {0x0000, 0x3800, 0x3C00, 0x3E00,
+                                 0x4000, 0x4200, 0x4400, 0x4600};
+  return tab[mag_code & 7u];
+}
+
 __device__ __forceinline__ float e8m0_decode(uint8_t bits) {
   if (bits == 0xFFu) return nanf("");
   return ldexpf(1.0f, static_cast<int>(bits) - 127);
+}
+
+// MX scale is 2^(e8m0-127). Fold into the E2M1 value with ldexp — no fmul.
+// Equal to e2m1_decode(c) * e8m0_decode(s) for finite scales (tested).
+__device__ __forceinline__ float mxfp4_elem_ldexp(uint8_t e2m1_code,
+                                                 uint8_t e8m0_bits) {
+  if (e8m0_bits == 0xFFu) return nanf("");
+  const float e = e2m1_decode(e2m1_code);
+  return ldexpf(e, static_cast<int>(e8m0_bits) - 127);
+}
+
+// Same product via FP16 exponent-field add (the "cheap MX" instruction story).
+__device__ __forceinline__ float mxfp4_elem_expfield(uint8_t e2m1_code,
+                                                    uint8_t e8m0_bits) {
+  if (e8m0_bits == 0xFFu) return nanf("");
+  const unsigned c = static_cast<unsigned>(e2m1_code & 0xF);
+  if ((c & 7u) == 0u) return 0.f;  // ±0 * 2^e = 0
+  unsigned short bits = e2m1_pos_fp16_bits(c);
+  if (c & 8u) bits = static_cast<unsigned short>(bits | 0x8000u);
+  int exp = static_cast<int>((bits >> 10) & 0x1F);
+  const int sign_mant = bits & ~0x7C00;
+  exp += static_cast<int>(e8m0_bits) - 127;
+  if (exp <= 0) return 0.f;  // underflow → 0 for this discrete set
+  if (exp >= 31) {
+    // Inf with sign
+    const unsigned short inf =
+        static_cast<unsigned short>((sign_mant & 0x8000) | 0x7C00);
+    return __half2float(__ushort_as_half(inf));
+  }
+  const unsigned short out =
+      static_cast<unsigned short>(sign_mant | (exp << 10));
+  return __half2float(__ushort_as_half(out));
 }
 
 __device__ __forceinline__ float e4m3_decode(uint8_t bits) {
@@ -89,8 +129,8 @@ __device__ __forceinline__ float dequant_mxfp4_elem(const uint8_t* data,
   (void)N;
   const size_t blocks = K / 32;
   const size_t b = k / 32;
-  const float scale = e8m0_decode(scales[n * blocks + b]);
-  return e2m1_decode(unpack_nibble(data, n * K + k)) * scale;
+  return mxfp4_elem_ldexp(unpack_nibble(data, n * K + k),
+                          scales[n * blocks + b]);
 }
 
 __device__ __forceinline__ float dequant_nvfp4_elem(const uint8_t* data,

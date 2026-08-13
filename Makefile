@@ -46,7 +46,7 @@ CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
            $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref \
-           $(BUILD)/bench_dequant_then_cublas
+           $(BUILD)/bench_dequant_then_cublas $(BUILD)/bench_waterfall
 ALL     := $(PROBES) $(BENCHES)
 
 .PHONY: all probe bench bench_cublas bench_stream bench_naive bench_qgemv \
@@ -102,14 +102,20 @@ $(BUILD)/test_bittrick_splitk: tests/test_bittrick_splitk.cu \
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 # GPU correctness for the fused-ref kernel (sm_86 lab). Not a perf claim.
+$(BUILD)/test_mx_decode: tests/test_mx_decode.cu include/qgemm/dequant_device.cuh \
+                         include/qgemm/timing.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
-          $(BUILD)/test_bittrick_splitk
+          $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
 	@$(BUILD)/test_qgemv_probes
 	@echo "--- test_bittrick_splitk ---"
 	@$(BUILD)/test_bittrick_splitk
+	@echo "--- test_mx_decode ---"
+	@$(BUILD)/test_mx_decode
 	@echo "GPU fused-ref tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
@@ -149,9 +155,14 @@ $(BUILD)/bench_dequant_then_cublas: src/bench/bench_dequant_then_cublas.cu \
                                     include/qgemm/*.cuh include/qgemm/*.hpp | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
 
+$(BUILD)/bench_waterfall: src/bench/bench_waterfall.cu include/qgemm/*.cuh \
+                          include/qgemm/*.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
+
 bench_naive: $(BUILD)/bench_naive_dequant
 bench_qgemv: $(BUILD)/bench_qgemv_ref
 bench_deq: $(BUILD)/bench_dequant_then_cublas
+bench_waterfall: $(BUILD)/bench_waterfall
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.
