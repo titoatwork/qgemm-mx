@@ -1,0 +1,41 @@
+=== ncu gate 2026-08-13T13:04:17+00:00 ===
+/usr/local/cuda-12.6/bin/ncu
+NVIDIA (R) Nsight Compute Command Line Profiler
+Copyright (c) 2018-2024 NVIDIA Corporation
+Version 2024.3.0.0 (build 34567288) (public-release)
+
+STATUS=FAIL
+Raw error:
+==PROF== Connected to process 4058 (/home/titoisalive/Documents/projects/qgemm-mx/build/bandwidth)
+==ERROR== ERR_NVGPUCTRPERM - The user does not have permission to access NVIDIA GPU Performance Counters on the target device 0. For instructions on enabling permissions and to get more information see https://developer.nvidia.com/ERR_NVGPUCTRPERM
+=== empirical bandwidth: NVIDIA GeForce RTX 3050 6GB Laptop GPU (sm_86) ===
+working set 64 MiB per buffer  (L2 is 1.50 MB, ratio 43x)
+grid 640 x 256
+
+pattern                   median us         GB/s  % of theo
+read+write (copy)            1909.6         70.3      53.4%
+read-only (stream)           1010.7         66.4      50.4%
+write-only (fill)             982.8         68.3      51.9%
+
+theoretical peak             131.7 GB/s
+
+>>> USE THIS AS THE PROJECT DENOMINATOR: 66.4 GB/s (read-only)
+>>> record it in PREREGISTRATION.md before any GEMM measurement
+
+=== t_ideal at 66.4 GB/s (weight traffic only) ===
+shape                          fp16        fp8      mxfp4   int4g128
+q/o_proj  4096x4096         505.34    252.67    134.23    130.28   (us)
+k/v_proj  1024x4096         126.34     63.17     33.56     32.57   (us)
+gate/up  14336x4096        1768.70    884.35    469.81    455.99   (us)
+down_proj 4096x14336       1768.70    884.35    469.81    455.99   (us)
+gpt-oss   2880x2880         249.83    124.92     66.36     64.41   (us)
+
+kernel launch overhead  970.824 us (median, non-graphed)
+  -> compare against t_ideal above. Where launch >= t_ideal,
+     un-graphed measurement reports the launcher, not the kernel.
+
+==PROF== Disconnected from process 4058
+
+WSL2 fix (Windows host): NVIDIA Control Panel → Desktop → Enable Developer Settings
+  → Developer → Manage GPU Performance Counters → Allow access for all users
+  then: wsl --shutdown  and reopen.

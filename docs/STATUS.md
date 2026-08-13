@@ -47,13 +47,15 @@ sm_86 harness outcomes recorded 2026-08-12. sm_90 predictions incomplete until p
 | Date | Milestone |
 |------|-----------|
 | 2026-08-12 | R0 harness, probes, env capture, preregistration, cuBLAS FP16 sm_86 |
-| 2026-08-13 | Master execution plan (peak standard) |
+| 2026-08-13 | Master execution plan (peak standard) + living governance docs |
+| 2026-08-13 | CPU CI workflow (`.github/workflows/cpu-ci.yml`) + `CONTRIBUTING.md` |
+| 2026-08-13 | G2 ncu gate on sm_86: **FAIL** (`ERR_NVGPUCTRPERM`) — see `docs/GATES.md` |
 
 ---
 
 ## Next actions (priority)
 
-1. Land host pack + structured probes + CPU tests  
+1. Land host pack + structured probes + CPU tests (`make test-cpu`)  
 2. Stream-ideal bench + analysis scripts  
-3. CPU CI  
-4. User: ncu gate + DGX probe when available  
+3. User: fix ncu counters on laptop (G2) + DGX probe when available  
+4. Upstream demand check (G6) when ready  
