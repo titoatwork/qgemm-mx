@@ -83,6 +83,8 @@ R2 sm_90 (authoritative)        = MUST:
 
 **Copying Marlin’s permutation tables into a Hopper kernel is a known failure mode.** Cite Marlin/Machete; **derive** with CuTe or a written fragment diagram.
 
+**First opcode (2026-08-13):** `wgmma.mma_async.sync.aligned.m64n8k16.f32.f16.f16`. A-fragment is independent of N; n=8 is the decode-first ISA minimum. Official table + host permute: [`A_FRAGMENT.md`](A_FRAGMENT.md), `include/qgemm/a_fragment.hpp`. Even/odd 8-wide K is **not** this fragment.
+
 CUTLASS starting point named by Machete authors: **example 55 — Hopper mixed-dtype GEMM**.
 
 ---

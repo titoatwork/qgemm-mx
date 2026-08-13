@@ -33,6 +33,11 @@ int main() {
   EXPECT(!k_multiple_ok(2880, kInt4Group), "2880 % 128");
   EXPECT(k_multiple_ok(2880, kNvBlock), "2880 % 16");
 
+  // First opcode is m64n8k16: CTA may be 1 atom (64) or 4 (256).
+  const DecodePlan atom90 = plan_decode(4096, kSmCountH100SXM, kTileNWgmmaAtom);
+  EXPECT(atom90.n_ctas == 64, "one-atom CTAs");
+  EXPECT(atom90.split_k >= 4, "H100 still needs split-K at tile 64");
+
   if (g_fail) {
     std::fprintf(stderr, "test_contract: %d fail\n", g_fail);
     return 1;

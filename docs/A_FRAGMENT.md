@@ -1,148 +1,182 @@
-# Hopper `wgmma` A-fragment — written contract (not CuTe codegen)
+# Hopper `wgmma` A-fragment — first opcode, official table, host permute
 
-**Status:** Schematic + checklist. **Per-lane element table is not invented here.**  
-**Authority:** PTX ISA (`wgmma.mma_async` register fragments), Machete/Wilkinson, Colfax WGMMA tutorial, `kernel_contract.hpp`.  
+**Status:** Opcode **picked**. Per-lane table **transcribed** from PTX (not invented). Host permute **implemented**. No `wgmma` issued yet.  
+**Authority:** PTX ISA 8.5 (CUDA 12.6, this repo’s toolkit) and PTX ISA 9.3 (current web docs).  
+**Code:** `include/qgemm/a_fragment.hpp`, `tests/test_a_fragment.cpp`  
 **Date:** 2026-08-13
-
-This document exists so R2 cannot start from folklore. It says what we **know**, what we **will look up in PTX on the day we emit `wgmma`**, and how that maps onto **our** `(M,N,K)` and even/odd pack.
 
 ---
 
-## 1. Instruction we will target first
+## 1. Opcode we will implement first
 
 | Field | Choice | Why |
 |-------|--------|-----|
 | Family | `wgmma.mma_async.sync.aligned` | Hopper peak; not `mma.sync` |
 | Acc | `.f32` | Contract: FP32 accumulate |
-| A/B | `.f16` / `.f16` after upconvert | Software FP4 → FP16 then MMA |
-| Shape (first) | **m64n8k16** or **m64n16k16** | Standard CUTLASS/Hopper tiles; final pick when we implement |
-| Warpgroup | **128 threads** (4 warps) | Hardware unit of `wgmma` |
+| A/B after upconvert | `.f16` / `.f16` | Software FP4 → FP16 then MMA |
+| Shape | **`m64n8k16`** | See below |
+| PTX | `wgmma.mma_async.sync.aligned.m64n8k16.f32.f16.f16` | `wgmma::kFirstOpcode` |
+| Warpgroup | **128 threads** (4 warps) | Hardware unit |
+
+**Why n=8, not n=16 / n=64.**  
+A is **64×16 for every** `m64nNk16`. N only sizes B and C. Issued problem is `Yᵀ = W @ Xᵀ`, so wgmma-N = logical **M**. Decode has M=1; the ISA minimum N is 8. Larger n wastes C registers (4 f32/thread at n=8 vs 8 at n=16 vs 32 at n=64) and does not change the A-fragment we must pre-shuffle. Prefill can retarget n later; the A permute stays.
 
 We do **not** emit this instruction yet.
 
 ---
 
-## 2. Operand mapping (frozen)
-
-Logical linear layer (`shapes.hpp`):
+## 2. Operand mapping (unchanged)
 
 ```
-X [M, K]     activations   (row-major)
-W [N, K]     weights       (row-major, 4-bit packed)
-Y [M, N]     output        (row-major)
-Y = X @ Wᵀ
+logical:  Y = X @ Wᵀ
+issued:   Yᵀ = W @ Xᵀ
+A = upconverted W [N, K]   registers   ← this fragment
+B = Xᵀ            [K, M]   SMEM (TMA)
+C = Yᵀ            [N, M]   registers
 ```
 
-`wgmma` rule: **B is SMEM-only; A and C are registers.**  
-Upconverted weights live in registers → they must be **A**.
-
-Issued problem (`kernel_contract.hpp::wgmma_view`):
-
-```
-A  = upconverted W     [N, K]     registers
-B  = Xᵀ                [K, M]     SMEM (TMA)
-C  = Yᵀ                [N, M]     registers
-Yᵀ = W @ Xᵀ
-```
-
-If `M=1` (decode), C is an N-vector; A is still the fat weight matrix. That is why **split-K** and **N-tiles** dominate occupancy, not a fat M-tile.
+One atom: A is 64 rows of W × 16 of K.
 
 ---
 
-## 3. What an “A-fragment” is
+## 3. Official A-fragment table (transcribed)
 
-For one `wgmma` of shape **m64 × k16** (A is 64×16 f16):
+**PTX ISA 8.5 / 9.3** — section *Matrix Fragments for wgmma.mma_async.m64nNk16*  
+HTML: https://docs.nvidia.com/cuda/parallel-thread-execution/index.html  
+CUDA 12.6 archive: https://docs.nvidia.com/cuda/archive/12.6.3/parallel-thread-execution/index.html  
+Contents listing (ISA 8.5): §9.7.16.5.1.1.1 / neighbouring *m64nNk16* fragment subsection.
 
-- 64 rows of A ↔ **64 rows of W** (an N-tile of 64)  
-- 16 cols of A ↔ **16 of K** (must be a multiple of MX block 32 after enough steps: two k16 = 32)  
-- 128 threads share that 64×16 tile  
-- **Elements per thread** = `(64×16) / 128 = 8` f16 values (typically 4× `.f16x2`)
+The per-warp `(a0…a7)` map is the **same text** as *Matrix Fragments for `mma.m16n8k16` with `.f16` and `.bf16` types*. Four warps cover M=64: warp `w` owns rows `[16w, 16w+16)`.
+
+PTX (structure copied, not paraphrased into a different numbering):
 
 ```
-          K-tile (16) ---->
-        ┌──────────────────┐
-  N-tile│   A fragment     │  64 rows × 16 cols  f16
-  (64)  │  owned by 128    │
-   |    │  threads         │
-   v    └──────────────────┘
+groupID           = %laneid >> 2
+threadID_in_group = %laneid % 4
+
+row = groupID           for ai where  0 <= i < 2  ||  4 <= i < 6
+    = groupID + 8       otherwise
+
+col = (threadID_in_group * 2) + (i & 0x1)         for ai where i <  4
+    = (threadID_in_group * 2) + (i & 0x1) + 8     for ai where i >= 4
 ```
 
-**PTX defines which (row, col) each `%tid` holds.** That table is in:
+Then `row += 16 * warp_id` with `warp_id = tid / 32`, `tid ∈ [0, 128)`, `laneid = tid % 32`.
 
-> PTX ISA → `wgmma.mma_async` → *Register Fragments and Shared Memory Matrix Layouts*  
-> (version-locked the day we implement; do not copy from memory)
+| i | row (in warp) | col |
+|--:|---------------|----:|
+| 0 | groupID | 2·tg + 0 |
+| 1 | groupID | 2·tg + 1 |
+| 2 | groupID + 8 | 2·tg + 0 |
+| 3 | groupID + 8 | 2·tg + 1 |
+| 4 | groupID | 2·tg + 8 |
+| 5 | groupID | 2·tg + 9 |
+| 6 | groupID + 8 | 2·tg + 8 |
+| 7 | groupID + 8 | 2·tg + 9 |
 
-Until that table is transcribed **from the ISA PDF for the exact `.m64n*k16.f16` variant we pick**, any “lane 7 owns W[n+3,k+12]” claim is **fiction**. We refuse to write fiction into the kernel.
+`tg = threadID_in_group`. Each 32-bit A register is one `.f16x2`: `(a0,a1)`, `(a2,a3)`, `(a4,a5)`, `(a6,a7)` — **already a consecutive-K pair on one row**. Dual convert applies *inside* those pairs. It does **not** need the even/odd 8-wide word.
 
-### What we *can* say without the table
+Worked example, `tid = 0` (warp 0, lane 0):
 
-| Constraint | Consequence for pack |
-|------------|----------------------|
-| A is **K-contiguous in the MMA sense**, not in our sequential byte stream | Even/odd words help dual convert; they are **not** automatically A-fragment order |
-| 16 of K per instruction | Inner loop steps of 16; MX scale block is 32 → **two** wgmma K-steps per MX block (or pack scales to match) |
-| 64 of N per instruction | N-tile 64 (or 128 with two warpgroups) vs our occupancy table’s 256 — occupancy math must be **recomputed** for the real tile |
-| No 4-bit `ldmatrix` | Offline permute so a wide load fills the **8 f16s that this lane will hold after upconvert** |
+| i | (row, col) in the 64×16 A tile |
+|--:|--------------------------------|
+| 0 | (0, 0) |
+| 1 | (0, 1) |
+| 2 | (8, 0) |
+| 3 | (8, 1) |
+| 4 | (0, 8) |
+| 5 | (0, 9) |
+| 6 | (8, 8) |
+| 7 | (8, 9) |
+
+`tid = 32` (warp 1, lane 0) is the same pattern with row += 16.
+
+128 threads × 8 elements = 1024 = 64 × 16. Tested as a bijection (`test_a_fragment`).
+
+### C-fragment (same sitting, n=8, `.f32`)
+
+Same per-warp map as `mma.m16n8k16` C. 4 f32 per thread.
+
+```
+row = groupID           for di where i <  2
+    = groupID + 8       for di where i >= 2
+col = (threadID_in_group * 2) + (i & 0x1)
+```
+
+plus `row += 16 * warp_id`. Bijection on 64×8 tested.
 
 ---
 
-## 4. How even/odd sits *under* the fragment (not instead of it)
+## 4. Even/odd is not this table
 
-Even/odd word (implemented, tested):
+Even/odd word (implemented earlier):
 
 ```
-uint32 slots LSB→MSB:  k0 k2 k4 k6 | k1 k3 k5 k7
+one row, 8 consecutive K:  [k0 k2 k4 k6 | k1 k3 k5 k7]
 ```
 
-That is a **convert-friendly** 8-wide K bundle.  
-A-fragment is a **thread-owned** subset of a 64×16 A tile.
+tid 0’s A-fragment is **2 rows × 4 K-cols**, not 8 K of one row. Intersection with even/odd word 0 of row 0 is only `(0,0)` and `(0,1)`. Treating even/odd as “the Hopper layout” is the Marlin-port mistake this file exists to prevent.
 
-Pipeline we will implement later:
+Pipeline:
 
 ```
 offline:  sequential pack
-       →  even/odd  (dual convert)     [DONE as optional layout]
-       →  A-fragment pre-shuffle       [NOT DONE — needs PTX table]
-load:     32/128-bit → registers
-upconvert: nibble → f16  (INT4 0x6400 / MX ldexp)   [DONE as decode]
-wgmma:    A=regs  B=TMA(Xᵀ)
+       →  even/odd          [optional; fused-ref convert]
+       →  A-fragment shuffle [DONE as host permute]
+load:     words[n_tile][k_tile][tid]   (32-bit = 8 nibbles in a0..a7 order)
+upconvert: nibble i → f16 ai  (pair i,i+1 already same-row consecutive K)
+wgmma:    A=regs  B=TMA(Xᵀ)            [NOT DONE]
 ```
 
-Skipping the third arrow and calling even/odd “the Hopper layout” would be the Marlin-port mistake.
+---
+
+## 5. Host permute
+
+`permute_seq_to_a_fragment` / `pack_mxfp4_a_fragment` (also NV, INT4):
+
+```
+words[n_tile][k_tile][tid]   n_tile = N/64, k_tile = K/16
+word bits [4i : 4i+4) = nibble of W[n_tile*64 + row(tid,i), k_tile*16 + col(tid,i)]
+```
+
+Scales stay sequential (indexed by logical `(n,k)`).  
+Requires `N % 64 == 0`, `K % 16 == 0`. **Every frozen layer satisfies this**, including `gpt_oss_2880` (2880/64 = 45, 2880/16 = 180). INT4-g128 still rejects K=2880 at *pack* time (group 128), not at the fragment tile.
+
+Inverse is bit-exact. `make test-cpu` runs `test_a_fragment`.
 
 ---
 
-## 5. MX / NV scale vs K16
+## 6. Occupancy: atom tile vs CTA tile
 
-| Format | Block | vs k16 wgmma |
-|--------|------:|----------------|
-| MXFP4 | 32 | 2 × k16 share one E8M0 per 32 along K |
-| NVFP4 | 16 | 1 × k16 = one E4M3 block (aligned — nice) |
-| INT4-g128 | 128 | 8 × k16 per group |
+The fragment does **not** force CTA N=64. A CTA may issue 1 atom (tile 64) or 4 (tile 256, the fused-ref default).
 
-**2880 / 16 = 180** — NV and wgmma k16 **align**.  
-**2880 / 32 = 90** — MX aligns.  
-**2880 / 128 = 22.5** — INT4-g128 **does not**. Unchanged.
+| CTA tile | q_o_proj CTAs | occ H100 | still starved? | split-K to ~2×132 |
+|---------:|--------------:|---------:|:--------------:|------------------:|
+| 256 (4 atoms) | 16 | 0.121 | yes | 17 |
+| **64 (1 atom)** | **64** | **0.485** | **yes** | **5** |
 
----
+One-atom CTAs help a lot and **still** starve 132 SMs without split-K. `kv_gqa` at tile 64 is 16 CTAs / 0.121 — worst layer, unchanged in kind. Full tables: [`OCCUPANCY.md`](OCCUPANCY.md).
 
-## 6. Implementation checklist (R2 gate)
-
-- [ ] Pick exact `wgmma` shape (m64n8k16 vs m64n16k16 vs n32…)  
-- [ ] Transcribe **A-fragment table** from PTX ISA for that opcode (cite section + version)  
-- [ ] Write `permute_to_a_fragment()` + inverse + test vs table  
-- [ ] TMA descriptor for B = Xᵀ tile  
-- [ ] Recompute CTA/split-K with tile N = 64 (not 256)  
-- [ ] Do **not** ship a kernel that only does even/odd dual-nibble and claims Hopper peak  
+MX block 32 = **two** k16 steps. NV block 16 = one k16. 2880 aligns with both.
 
 ---
 
-## 7. What we shipped instead (so this file is not vapor)
+## 7. Checklist
 
-| Artifact | Role |
-|----------|------|
-| `kernel_contract.hpp` | Transpose mapping as code |
-| `permute.hpp` / even-odd pack | Convert-friendly layout |
-| `k_qgemm_ref_mx_even_odd_dual[_splitk]` | Prove pack+dual+split-K math |
-| This file | Honest A-fragment contract |
+- [x] Pick exact `wgmma` shape → **m64n8k16**
+- [x] Transcribe A-fragment table from PTX (cite section + version)
+- [x] `permute_to_a_fragment()` + inverse + test vs table
+- [x] Recompute occupancy for CTA tile = 64 (and keep 256)
+- [ ] TMA descriptor for B = Xᵀ tile
+- [ ] Emit `wgmma` on sm_90 (DGX)
+- [ ] Do **not** ship a kernel that only does even/odd dual-nibble and claims Hopper peak
 
-*End. Update when the PTX table is transcribed.*
+---
+
+## 8. What this is not
+
+- Not a kernel. `src/kernels/` stays empty.
+- Not a CuTe codegen dump. The table is the ISA, in our types.
+- Not a perf claim. Host permute is packing, not throughput.
+
+*End.*

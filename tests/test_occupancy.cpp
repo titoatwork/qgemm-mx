@@ -34,15 +34,19 @@ int main() {
   EXPECT(sk >= 16, "need many K-splits to fill 132 SMs");
   EXPECT(16 * sk >= 2 * kSmCountH100SXM, "oversubscribe ~2x");
 
-  // Print a table for D1 / report.
+  // Print tables for D1 / report. 256 = fused-ref CTA; 64 = one wgmma atom.
   std::printf("layer,N,tile,ctas,occ_sm86,occ_sm90,splitk_h100_2x\n");
-  for (size_t i = 0; i < kNumLayerShapes; ++i) {
-    const auto& L = kLayerShapes[i];
-    const auto a = estimate_occupancy(L.N, kSmCountLaptop3050);
-    const auto b = estimate_occupancy(L.N, kSmCountH100SXM);
-    const int s = splitk_to_fill(L.N, kSmCountH100SXM);
-    std::printf("%s,%zu,256,%d,%.3f,%.3f,%d\n", L.name, L.N, a.ctas,
-                a.occupancy, b.occupancy, s);
+  const std::size_t tiles[2] = {kTileNFusedRef, kTileNWgmmaAtom};
+  for (std::size_t t = 0; t < 2; ++t) {
+    const std::size_t tile = tiles[t];
+    for (size_t i = 0; i < kNumLayerShapes; ++i) {
+      const auto& L = kLayerShapes[i];
+      const auto a = estimate_occupancy(L.N, kSmCountLaptop3050, tile);
+      const auto b = estimate_occupancy(L.N, kSmCountH100SXM, tile);
+      const int s = splitk_to_fill(L.N, kSmCountH100SXM, tile);
+      std::printf("%s,%zu,%zu,%d,%.3f,%.3f,%d\n", L.name, L.N, tile, a.ctas,
+                  a.occupancy, b.occupancy, s);
+    }
   }
 
   if (g_fail) {

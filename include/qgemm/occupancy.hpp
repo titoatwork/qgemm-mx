@@ -15,6 +15,11 @@
 
 namespace qgemm {
 
+// CTA N-tiles. 256 was the fused-ref / paper-arithmetic default (4× m64
+// atoms). The first wgmma atom is 64; a CTA may issue one or several.
+inline constexpr std::size_t kTileNFusedRef = 256;
+inline constexpr std::size_t kTileNWgmmaAtom = 64;
+
 struct OccupancyEstimate {
   std::size_t N = 0;
   std::size_t tile_n = 256;

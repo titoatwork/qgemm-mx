@@ -7,9 +7,9 @@
 |-----------|--------|
 | Occupancy / CTA table (tile N=256, no split-K) | **DONE** — [`OCCUPANCY.md`](OCCUPANCY.md), `occupancy.hpp`, `make test-cpu` |
 | Dequant instruction sequence (cost model) | **INT4 0x6400 + MX ldexp/expfield proven** (`test_bittrick_splitk`, `test_mx_decode`) |
-| Nibble order / 32-bit word diagram | **Sequential word DONE** (below). Device even/odd pre-shuffle **open** |
-| sm_86 `mma.sync` fragment map | **Open** |
-| sm_90 TMA + `wgmma` layout | **Open** |
+| Nibble order / 32-bit word diagram | **Sequential + even/odd DONE**. A-fragment host permute **DONE** |
+| sm_86 `mma.sync` fragment map | **Open** (dev path; not the flagship) |
+| sm_90 TMA + `wgmma` layout | **A-fragment table + permute DONE**. TMA / emit still open |
 | Split-K vs scale-group boundaries | **Open** |
 | K=2880 sequential-pack correctness | MX fused-ref **done**; R2 device pack **open** |
 
@@ -76,7 +76,7 @@ This is **not** a `wgmma` A-fragment. It is the correctness layout. R2 must **of
 - [x] Even/odd 32-bit permute + inverse + dual-nibble extract (`permute.hpp`, `test_permute`, `test_even_odd_gpu`)  
 - [x] First-class `pack_mxfp4_even_odd` / `pack_int4_even_odd` + dual-nibble fused-ref (`k_qgemm_ref_mx_even_odd_dual`) — matches sequential (max_abs=0); ~3× faster than scalar sequential on 256² sm_86 (not a roof claim)  
 - [x] Written **A-fragment contract** (no invented per-lane table): [`A_FRAGMENT.md`](A_FRAGMENT.md)  
-- [ ] Transcribe official PTX A-fragment table for chosen `wgmma` opcode + `permute_to_a_fragment()`  
+- [x] Opcode **m64n8k16**; official A-fragment table transcribed; `permute_seq_to_a_fragment()` + inverse (`a_fragment.hpp`, `test_a_fragment`)  
 
 ### Step C — sm_86 fragment mapping (`mma.sync`)
 
@@ -102,8 +102,8 @@ Sourced: Machete (Wilkinson 2024), Colfax WGMMA tutorial, CUTLASS ex. 55. Full w
 - Interleaved nibble→f16 prior art: vLLM `vllm_numeric_conversion.cuh` — **cite, do not paste tables blindly**.
 
 - [x] Explicit “transpose GEMM” in code: `include/qgemm/kernel_contract.hpp` (`wgmma_view`)  
-- [ ] Written 32-bit word diagram for **A-fragment** (not Ampere B-fragment)  
-- [ ] CuTe or equivalent layout description of the pre-shuffle  
+- [x] Written 32-bit word diagram for **A-fragment** (not Ampere B-fragment) — [`A_FRAGMENT.md`](A_FRAGMENT.md)  
+- [x] Host pre-shuffle = official PTX table (`a_fragment.hpp`). CuTe codegen still optional later.  
 
 Logical `Y = X @ Wᵀ` ↔ issued MMA `Yᵀ = W Xᵀ` (weights = wgmma **A**).
 

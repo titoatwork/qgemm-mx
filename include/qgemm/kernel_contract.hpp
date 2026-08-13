@@ -10,6 +10,10 @@
 #include "qgemm/occupancy.hpp"
 #include "qgemm/shapes.hpp"
 
+// First Hopper opcode (decode-first). A-fragment table lives in a_fragment.hpp.
+//   wgmma.mma_async.sync.aligned.m64n8k16.f32.f16.f16
+// A is 64×16 for every n; n=8 is the ISA minimum and matches decode M=1.
+
 namespace qgemm {
 namespace contract {
 
@@ -54,7 +58,8 @@ inline constexpr WgmmaView wgmma_view(LogicalGemm g) {
   return WgmmaView{g.N, g.K, g.K, g.M, g.N, g.M};
 }
 
-// Decode CTA plan: N-tiles × split-K. Default tile 256 (same as occupancy.hpp).
+// Decode CTA plan: N-tiles × split-K. Default tile 256 (4× first-opcode atoms).
+// Pass kTileNWgmmaAtom (64) for one-atom CTAs.
 struct DecodePlan {
   std::size_t tile_n = 256;
   int n_ctas = 0;

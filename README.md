@@ -28,7 +28,7 @@ Predictions: [`PREREGISTRATION.md`](PREREGISTRATION.md)
 |---|---|---|
 | **R0** | Measurement harness; host pack; occupancy math; fused-ref GPU correctness | **local peak** — harness, pack/probes, occupancy table, full frozen shapes on sm_86 (stream + cuBLAS), naive dequant floor, fused-ref matches host (incl. MX K=2880). **sm_90 + public kernels still open** |
 | R1 | Decompose the Hopper FP4 gap | not started |
-| R2 | `wgmma`/TMA kernel that closes it | not started — fused-ref is **not** this kernel |
+| R2 | `wgmma`/TMA kernel that closes it | A-fragment table + host permute **done**; kernel not started — fused-ref is **not** this kernel |
 | R3 | MoE / grouped variant, DSL comparison | not started |
 
 A **fused-ref** kernel (`include/qgemm/qgemv_ref.cuh`) exists for **correctness
@@ -65,9 +65,10 @@ bash scripts/run_r0_sm86.sh
 back to the spec-sheet peak, because that fallback silently inflates every
 efficiency claim downstream.
 
-Wave-quantization / CTA occupancy (paper arithmetic, tile N=256, no split-K) is
-a testable artifact, not a slide claim. Every frozen layer starves H100 without
-split-K; the laptop hides that except on `kv_gqa`. Full table:
+Wave-quantization / CTA occupancy (paper arithmetic, tiles 256 and 64, no split-K)
+is a testable artifact, not a slide claim. Every frozen layer starves H100 at tile
+256; at the `m64` atom tile `q_o_proj` is still 0.485 of an H100. The laptop hides
+that except on `kv_gqa`. Full tables:
 [`docs/OCCUPANCY.md`](docs/OCCUPANCY.md). Reproduce:
 
 ```bash

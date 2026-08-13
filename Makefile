@@ -41,7 +41,8 @@ CXX      ?= g++
 CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
 CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
              $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy \
-             $(BUILD)/test_contract $(BUILD)/test_permute
+             $(BUILD)/test_contract $(BUILD)/test_permute \
+             $(BUILD)/test_a_fragment
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
@@ -78,7 +79,15 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_contract
 	@echo "--- test_permute ---"
 	@$(BUILD)/test_permute
+	@echo "--- test_a_fragment ---"
+	@$(BUILD)/test_a_fragment
 	@echo "All CPU tests passed."
+
+$(BUILD)/test_a_fragment: tests/test_a_fragment.cpp include/qgemm/a_fragment.hpp \
+                          include/qgemm/permute.hpp include/qgemm/pack.hpp \
+                          include/qgemm/occupancy.hpp include/qgemm/shapes.hpp \
+                          | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/test_permute: tests/test_permute.cpp include/qgemm/permute.hpp \
                        include/qgemm/pack.hpp | $(BUILD)
