@@ -63,12 +63,21 @@ device-friendly:     0 2 4 6 1 3 5 7  (even then odd — enables dual-nibble SIM
 
 This table is **not** a fragment map. Steps below remain open.
 
-### Step D — sm_90 TMA + `wgmma`
+### Step D — sm_90 TMA + `wgmma`  **(Hopper design law)**
 
-- `wgmma` reads B from **shared memory** under required swizzles; async pipeline.  
-- TMA descriptors constrain 2D tile shapes and swizzle modes.  
-- An Ampere/Marlin register-B layout **does not** satisfy this → **Machete-class** redesign, not a port.  
-- This is the **highest-value** derivation for the project (authoritative results are sm_90).
+Sourced: Machete (Wilkinson 2024), Colfax WGMMA tutorial, CUTLASS ex. 55. Full writeup: [`RESEARCH_ANALYSIS.md`](RESEARCH_ANALYSIS.md).
+
+- `wgmma` is warpgroup-async. **Operand B is sourced from SMEM; A and C from registers.**  
+- We upconvert 4-bit → FP16 **in registers**. Therefore weights **cannot** be `wgmma` B unless we store them back to SMEM (death).  
+- **Machete’s move:** compute **`Yᵀ = Wᵀ Xᵀ`** so upconverted weights are operand **A** (registers). CUTLASS/CuTe makes the transpose a layout, not a memcpy.  
+- **`ldmatrix` has no 4-bit.** Pre-shuffle offline so one **32- or 128-bit** SMEM load feeds the fragment (Marlin *and* Machete). Sequential `pack.hpp` order is **wrong** for this.  
+- TMA: async GMEM→SMEM tiles; warp-specialized producer/consumer.  
+- Marlin’s hand `mma` shuffle **does not port**; ~37% Hopper peak lost if we only issue `mma.sync`.  
+- Interleaved nibble→f16 prior art: vLLM `vllm_numeric_conversion.cuh` — **cite, do not paste tables blindly**.
+
+- [ ] Written 32-bit word diagram for **A-fragment** (not Ampere B-fragment)  
+- [ ] CuTe or equivalent layout description of the pre-shuffle  
+- [ ] Explicit “transpose GEMM” in the kernel contract (`Y = X @ Wᵀ` in math ↔ `wgmma` NT/TN choice)
 
 ### Step E — Split-K and scale-group boundaries
 

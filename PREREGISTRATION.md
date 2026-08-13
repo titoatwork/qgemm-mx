@@ -129,6 +129,10 @@ fragment layout rather than to arithmetic codegen quality.
 
 *Append only. Date every entry. Record refutations as prominently as confirmations.*
 
+### 2026-08-13 · Literature (not a measurement)
+
+Machete (Wilkinson 2024): Ampere `mma`-only kernels forfeit ~37% of Hopper peak; `wgmma` requires B in SMEM so fused 4-bit upconvert belongs on operand **A** via `Yᵀ=WᵀXᵀ`. This does **not** change numerical predictions P2–P7; it **constrains R2 implementation**. Native Blackwell FP4 serving numbers are excluded from P3’s comparison set (apples-to-oranges datapath). vLLM #30135/#38022 still support “fallback + 2880 align” as a live production surface.
+
 ### 2026-08-12 · Harness validation on sm_86 (pre-R0)
 
 Not a prediction test — this is the harness proving itself against a known

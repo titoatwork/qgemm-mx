@@ -411,4 +411,13 @@ A deliverable is not done if:
 
 ---
 
+## 15. Literature lock (2026-08-13)
+
+See [`RESEARCH_ANALYSIS.md`](RESEARCH_ANALYSIS.md). Non-negotiable design law for R2 sm_90:
+
+- Hopper `wgmma`: **B from SMEM, A from registers**  
+- Upconverted weights must be **operand A** → **transpose the math** (`Yᵀ = Wᵀ Xᵀ`)  
+- Marlin `mma` pre-shuffle **does not port**; use CuTe / written A-fragment derivation  
+- Native FP4 numbers from Blackwell/MI355 are **out of scope** as baselines  
+
 *End of master execution plan. Living document — update when rungs complete; do not silently shrink quality bars.*

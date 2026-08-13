@@ -1,6 +1,6 @@
 # Project status dashboard
 
-**Last updated:** 2026-08-13  
+**Last updated:** 2026-08-13 (research pass: Machete/`wgmma` A-operand law)  
 **Remote policy:** **local-only development** — no routine GitHub push (see [`LOCAL_WORKFLOW.md`](LOCAL_WORKFLOW.md))  
 **Authoritative plan:** [`MASTER_EXECUTION_PLAN.md`](MASTER_EXECUTION_PLAN.md)  
 **Thesis:** [`PROJECT-v2.0-fp4-hopper.md`](PROJECT-v2.0-fp4-hopper.md)  

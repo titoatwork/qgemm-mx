@@ -1,8 +1,10 @@
 // qgemv_ref.cuh — correct-and-slow fused weight-only GEMM (device).
 //
 // Y[m,n] = sum_k X[m,k] * dequant(W)[n,k]
-// One thread per (m,n). No Tensor Cores. Exists so we can prove encodings
-// on GPU and have a fused path before R2 wgmma work.
+// One thread per (m,n). No Tensor Cores, no pre-shuffle, no wgmma.
+// This is NOT a Marlin/Machete competitor. Hopper peak requires:
+//   wgmma + weights as operand A (Y^T = W^T X^T) + TMA + split-K.
+// See docs/RESEARCH_ANALYSIS.md and docs/D1_LAYOUT_DERIVATION.md.
 
 #pragma once
 
