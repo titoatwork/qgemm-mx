@@ -1,0 +1,5 @@
+path,M,N,K,format,graphed_us,pct_of_ideal_mx
+stream,1,4096,4096,mxfp4,89.7280,79.9778
+dequant_cublas,1,4096,4096,mxfp4,3020.2880,2.3760
+stream,2,4096,4096,mxfp4,81.2800,88.2904
+dequant_cublas,2,4096,4096,mxfp4,2931.7040,2.4478

@@ -1,0 +1,5 @@
+=== waterfall MXFP4 N=4096 K=4096 peak=124.2 ===
+  stream     M= 1     89.73 us    80.0%
+  deq+cublas M= 1   3020.29 us     2.4%
+  stream     M= 2     81.28 us    88.3%
+  deq+cublas M= 2   2931.70 us     2.4%

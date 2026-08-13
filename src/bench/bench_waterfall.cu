@@ -33,11 +33,12 @@ using namespace qgemm;
   } while (0)
 
 __global__ void k_stream(const float4* in, float* sink, size_t n4) {
-  size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t i = blockIdx.x * static_cast<size_t>(blockDim.x) + threadIdx.x;
+  const size_t stride = static_cast<size_t>(gridDim.x) * blockDim.x;
   float acc = 0.f;
-  if (i < n4) {
+  for (; i < n4; i += stride) {
     float4 v = in[i];
-    acc = v.x + v.y + v.z + v.w;
+    acc += v.x + v.y + v.z + v.w;
   }
   if (acc == 1234.5f) *sink = acc;
 }
@@ -63,9 +64,11 @@ int main(int argc, char** argv) {
   const int N = argc > 3 ? atoi(argv[3]) : 256;
   const int K = argc > 4 ? atoi(argv[4]) : 256;
   const int max_M = argc > 5 ? atoi(argv[5]) : 8;
+  const int do_fused = argc > 6 ? atoi(argv[6]) : 1;
   QG_CHECK(cudaSetDevice(dev));
   if (peak <= 0) {
-    std::printf("usage: %s <dev> <measured_gbps> [N K max_M]\n", argv[0]);
+    std::printf("usage: %s <dev> <measured_gbps> [N K max_M do_fused]\n",
+                argv[0]);
     return 2;
   }
   if (K % 32) {
@@ -106,8 +109,8 @@ int main(int argc, char** argv) {
     // --- stream ---
     {
       const size_t n4 = alloc / sizeof(float4);
-      const unsigned grid =
-          (unsigned)std::min(n4, (size_t)256);
+      const unsigned grid = static_cast<unsigned>(
+          std::min(n4, static_cast<size_t>(256 * 32)));
       auto st = [&](int, cudaStream_t s) {
         k_stream<<<grid ? grid : 1, 256, 0, s>>>(stream_buf, sink, n4);
       };
@@ -147,8 +150,8 @@ int main(int argc, char** argv) {
       cudaFree(Y);
     }
 
-    // --- fused-ref ---
-    {
+    // --- fused-ref (skip on large NK; scalar O(MNK) is not a BW probe) ---
+    if (do_fused && (size_t)N * (size_t)K <= 256ull * 256ull * 4ull) {
       float *X = nullptr, *Y = nullptr;
       QG_CHECK(cudaMalloc(&X, (size_t)M * K * sizeof(float)));
       QG_CHECK(cudaMalloc(&Y, (size_t)M * N * sizeof(float)));

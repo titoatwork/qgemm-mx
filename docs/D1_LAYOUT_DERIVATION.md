@@ -73,8 +73,8 @@ This is **not** a `wgmma` A-fragment. It is the correctness layout. R2 must **of
 ```
 
 - [x] Sequential 32-bit word diagram (R0 pack)  
-- [ ] Confirm even/odd against a `lop3` sequence we implement  
-- [ ] Offline permute + **A-fragment** CuTe/PTX diagram (R2)  
+- [x] Even/odd 32-bit permute + inverse + dual-nibble extract (`permute.hpp`, `test_permute`, `test_even_odd_gpu`)  
+- [ ] Offline pack stored even/odd by default + **A-fragment** CuTe/PTX diagram (R2)  
 
 ### Step C — sm_86 fragment mapping (`mma.sync`)
 

@@ -18,6 +18,33 @@ __device__ __forceinline__ uint8_t unpack_nibble(const uint8_t* data,
                             : static_cast<uint8_t>(b & 0xF);
 }
 
+// Even/odd 32-bit word: slots [k0 k2 k4 k6 | k1 k3 k5 k7] from LSB.
+// words is [N][K/8] row-major.
+__device__ __forceinline__ int even_odd_slot(int k_off) {
+  return (k_off & 1) ? (4 + (k_off >> 1)) : (k_off >> 1);
+}
+
+__device__ __forceinline__ uint8_t unpack_nibble_even_odd(
+    const unsigned* words, size_t n, size_t k, size_t K) {
+  const unsigned w = words[n * (K >> 3) + (k >> 3)];
+  const int slot = even_odd_slot(static_cast<int>(k & 7u));
+  return static_cast<uint8_t>((w >> (4 * slot)) & 0xFu);
+}
+
+// Dual extract: one 32-bit even/odd word → 4 even nibbles + 4 odd nibbles.
+__device__ __forceinline__ void dual_nibbles_from_word(unsigned w,
+                                                       uint8_t even[4],
+                                                       uint8_t odd[4]) {
+  even[0] = static_cast<uint8_t>(w & 0xF);
+  even[1] = static_cast<uint8_t>((w >> 4) & 0xF);
+  even[2] = static_cast<uint8_t>((w >> 8) & 0xF);
+  even[3] = static_cast<uint8_t>((w >> 12) & 0xF);
+  odd[0] = static_cast<uint8_t>((w >> 16) & 0xF);
+  odd[1] = static_cast<uint8_t>((w >> 20) & 0xF);
+  odd[2] = static_cast<uint8_t>((w >> 24) & 0xF);
+  odd[3] = static_cast<uint8_t>((w >> 28) & 0xF);
+}
+
 __device__ __forceinline__ int int4_from_nibble(uint8_t n) {
   n = static_cast<uint8_t>(n & 0xF);
   return (n & 8) ? static_cast<int>(n) - 16 : static_cast<int>(n);

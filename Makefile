@@ -41,7 +41,7 @@ CXX      ?= g++
 CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
 CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
              $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy \
-             $(BUILD)/test_contract
+             $(BUILD)/test_contract $(BUILD)/test_permute
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
@@ -75,7 +75,13 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_occupancy
 	@echo "--- test_contract ---"
 	@$(BUILD)/test_contract
+	@echo "--- test_permute ---"
+	@$(BUILD)/test_permute
 	@echo "All CPU tests passed."
+
+$(BUILD)/test_permute: tests/test_permute.cpp include/qgemm/permute.hpp \
+                       include/qgemm/pack.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/test_contract: tests/test_contract.cpp include/qgemm/kernel_contract.hpp \
                         include/qgemm/occupancy.hpp include/qgemm/shapes.hpp | $(BUILD)
@@ -106,8 +112,14 @@ $(BUILD)/test_mx_decode: tests/test_mx_decode.cu include/qgemm/dequant_device.cu
                          include/qgemm/timing.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
+$(BUILD)/test_even_odd_gpu: tests/test_even_odd_gpu.cu include/qgemm/permute.hpp \
+                            include/qgemm/dequant_device.cuh include/qgemm/pack.hpp \
+                            include/qgemm/timing.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
-          $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode
+          $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode \
+          $(BUILD)/test_even_odd_gpu
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
@@ -116,6 +128,8 @@ test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
 	@$(BUILD)/test_bittrick_splitk
 	@echo "--- test_mx_decode ---"
 	@$(BUILD)/test_mx_decode
+	@echo "--- test_even_odd_gpu ---"
+	@$(BUILD)/test_even_odd_gpu
 	@echo "GPU fused-ref tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
