@@ -1,0 +1,4 @@
+=== fused-ref MXFP4 GEMM (correct-slow) N=256 K=256 ===
+M=1  119.81 us  %ideal(mx bytes)=0.23
+M=2  113.41 us  %ideal(mx bytes)=0.25
+M=4  113.15 us  %ideal(mx bytes)=0.25

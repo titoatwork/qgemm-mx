@@ -1,8 +1,10 @@
 # Project status dashboard
 
 **Last updated:** 2026-08-13  
+**Remote policy:** **local-only development** — no routine GitHub push (see `LOCAL_WORKFLOW.md`)  
 **Authoritative plan:** [`MASTER_EXECUTION_PLAN.md`](MASTER_EXECUTION_PLAN.md)  
-**Thesis:** [`PROJECT-v2.0-fp4-hopper.md`](PROJECT-v2.0-fp4-hopper.md)
+**Thesis:** [`PROJECT-v2.0-fp4-hopper.md`](PROJECT-v2.0-fp4-hopper.md)  
+**Owner asks:** [`OWNER_CHECKLIST.md`](OWNER_CHECKLIST.md)
 
 ---
 
@@ -10,7 +12,7 @@
 
 | Rung | State | Notes |
 |------|--------|------|
-| **R0 Instrument** | **In progress — local peak strong** | Full frozen shapes on sm_86 (cuBLAS M≤256 + stream all formats). Pack/probes/ref GEMM CPU tests green. **sm_90 + public kernels still open** |
+| **R0 Instrument** | **Local peak + fused-ref GPU path** | Full shapes, occupancy math, host pack, **GPU fused-ref kernel matches host** (incl. K=2880 MX). Stream/cuBLAS/naive benches. **sm_90 + public kernels still open** |
 | R1 Quantify | Not started | Needs sm_90 + baselines |
 | R2 Close | Not started | D1 layout incomplete; R1 go/no-go |
 | R3 Extend | Not started | |

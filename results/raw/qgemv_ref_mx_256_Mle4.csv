@@ -1,0 +1,4 @@
+shape,M,N,K,format,graphed_cold_us,pct_of_ideal_mx_bytes
+qgemv_ref,1,256,256,mxfp4,119.8080,0.2340
+qgemv_ref,2,256,256,mxfp4,113.4080,0.2472
+qgemv_ref,4,256,256,mxfp4,113.1520,0.2477

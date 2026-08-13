@@ -29,15 +29,15 @@ LDLIBS    := -lcublas
 CXX      ?= g++
 CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
 CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
-             $(BUILD)/test_ref_gemm
+             $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
-           $(BUILD)/bench_naive_dequant
+           $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref
 ALL     := $(PROBES) $(BENCHES)
 
 .PHONY: all probe bench bench_cublas bench_stream bench_naive run-probe \
-        run-stream clean arch-info test-cpu
+        run-stream clean arch-info test-cpu test-gpu
 
 all: $(ALL)
 
@@ -57,7 +57,24 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_pack_roundtrip
 	@echo "--- test_ref_gemm ---"
 	@$(BUILD)/test_ref_gemm
+	@echo "--- test_occupancy ---"
+	@$(BUILD)/test_occupancy
 	@echo "All CPU tests passed."
+
+$(BUILD)/test_occupancy: tests/test_occupancy.cpp include/qgemm/occupancy.hpp \
+                         include/qgemm/shapes.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(BUILD)/test_qgemv_gpu: tests/test_qgemv_gpu.cu include/qgemm/qgemv_ref.cuh \
+                         include/qgemm/dequant_device.cuh include/qgemm/pack.hpp \
+                         include/qgemm/timing.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
+# GPU correctness for the fused-ref kernel (sm_86 lab). Not a perf claim.
+test-gpu: $(BUILD)/test_qgemv_gpu
+	@echo "--- test_qgemv_gpu ---"
+	@$(BUILD)/test_qgemv_gpu
+	@echo "GPU fused-ref tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
                        include/qgemm/pack.hpp include/qgemm/shapes.hpp | $(BUILD)
@@ -88,7 +105,12 @@ $(BUILD)/bench_naive_dequant: src/bench/bench_naive_dequant.cu include/qgemm/*.c
                               include/qgemm/shapes.hpp | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
 
+$(BUILD)/bench_qgemv_ref: src/bench/bench_qgemv_ref.cu include/qgemm/*.cuh \
+                          include/qgemm/*.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 bench_naive: $(BUILD)/bench_naive_dequant
+bench_qgemv: $(BUILD)/bench_qgemv_ref
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.

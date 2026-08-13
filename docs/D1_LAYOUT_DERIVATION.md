@@ -14,38 +14,62 @@ Produce a 32-bit word diagram and global-load story for:
 
 Formats: MXFP4 (E2M1 + E8M0/32), NVFP4 (E2M1 + E4M3/16), INT4-g128.
 
-## 2. Derivation steps (to fill)
+## 2. Derivation steps
 
 ### Step A — Dequant instruction sequence
 
-- [ ] Naive cost model (shift/mask/cvt/mul) — issue-bound at small M  
-- [ ] `lop3` / mantissa-OR path for two nibbles → f16x2  
-- [ ] MXFP4: E8M0 as **exponent add** (speed vs accuracy trade)  
-- [ ] NVFP4: E4M3 scale multiply cost  
-- [ ] INT4-g128: FP16 group scale  
+| Path | Cost model (decode, small M) | Notes |
+|------|------------------------------|--------|
+| Naive | shift + mask + `cvt` + scale mul ≈ 5–6 inst/weight | Often **issue-bound**, not pure HBM |
+| Marlin-class / TRT interleaved | `lop3` build two FP16 mantissas + bias remove + scale ≈ ~2 inst/weight | Prior art — **cite**, re-derive for our format |
+| MXFP4 E8M0 | Scale is **power of two** → fold into exponent (add), not FP mul | Speed win + accuracy cost (v2 thesis) |
+| NVFP4 E4M3 | True scale multiply (or approximate) | Slightly costlier dequant than MX |
+| INT4-g128 | FP16 group scale mul | Clean roofline arm |
+
+**R0 host pack** (`pack.hpp`) uses sequential nibble order for correctness only.  
+**R2 device pack** must follow Step B–D, not host order.
 
 ### Step B — Nibble order inside 32-bit words
 
-- [ ] Required order for pairwise `lop3` (e.g. 0,2,4,6,1,3,5,7 literature pattern)  
-- [ ] Diagram: bits → lanes  
+Target literature pattern for pairwise FP16 construction (verify against chosen ISA sequence):
 
-### Step C — sm_86 fragment mapping
+```
+sequential indices:  0 1 2 3 4 5 6 7  (within 8 consecutive 4-bit elems / 32-bit word)
+device-friendly:     0 2 4 6 1 3 5 7  (even then odd — enables dual-nibble SIMD paths)
+```
 
-- [ ] Which B elements each lane needs for chosen `mma` shape  
-- [ ] Why offline permute beats smem+shuffle  
-- [ ] Relation to Marlin (cite; do not paste tables without attribution)  
+- [ ] Confirm exact order against `lop3` / PTX sequence we implement  
+- [ ] Draw 32-bit word diagram once sequence is frozen  
+- [ ] Offline permute at pack time so global load delivers per-thread fragments  
 
-### Step D — sm_90 TMA + wgmma
+### Step C — sm_86 fragment mapping (`mma.sync`)
 
-- [ ] TMA descriptor constraints  
-- [ ] wgmma B smem swizzle  
-- [ ] Why Ampere layout fails → why Machete exists  
+- Ampere `mma.m16n8k16` (and kin): each lane owns a fixed subset of B-fragment elements.  
+- `ldmatrix` does **not** load raw 4-bit; without offline permute → smem staging + shuffles.  
+- Marlin’s answer: pack so one 128-bit load / thread is already in fragment order.  
+- **Our job:** re-derive for MX/NV block scales (group boundaries ≠ 128 always).  
+
+CTA count at M=1, N=4096, tile N=256 → **16 CTAs**. On 20 SMs (3050) nearly full; on **132 SMs (H100) ~12%** → split-K mandatory on sm_90.
+
+Full table: [`OCCUPANCY.md`](OCCUPANCY.md). Every frozen layer is H100-starved without split-K.
+
+### Step D — sm_90 TMA + `wgmma`
+
+- `wgmma` reads B from **shared memory** under required swizzles; async pipeline.  
+- TMA descriptors constrain 2D tile shapes and swizzle modes.  
+- An Ampere/Marlin register-B layout **does not** satisfy this → **Machete-class** redesign, not a port.  
+- This is the **highest-value** derivation for the project (authoritative results are sm_90).
 
 ### Step E — Split-K and scale-group boundaries
 
-- [ ] CTA count for frozen shapes on 132 SM  
-- [ ] Reduction strategy + determinism vs tolerances  
-- [ ] Group size 32/16/128 vs K-tile  
+| Shape | N | K | Notes |
+|-------|--:|--:|------|
+| q_o_proj | 4096 | 4096 | Canonical |
+| gpt_oss_2880 | 2880 | 2880 | **2880 % 128 ≠ 0** — Marlin-class align pain; MX block 32 OK |
+| down_proj | 4096 | 14336 | Deep K → split-K heavy |
+
+- Reduction: atomics vs two-pass; document determinism vs correctness tolerances.  
+- K-tile must respect group size (32 / 16 / 128) or restructure loop at group edges.  
 
 ## 3. Non-128-aligned shapes
 
