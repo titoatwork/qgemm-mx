@@ -25,15 +25,17 @@ NVCCFLAGS := -O3 -std=c++17 -arch=$(ARCH) -lineinfo --expt-relaxed-constexpr \
 LDLIBS    := -lcublas
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
-BENCHES := $(BUILD)/bench_cublas
+BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal
 ALL     := $(PROBES) $(BENCHES)
 
-.PHONY: all probe bench run-probe clean arch-info
+.PHONY: all probe bench bench_cublas bench_stream run-probe run-stream clean arch-info
 
 all: $(ALL)
 
 probe: $(PROBES)
 bench: $(BENCHES)
+bench_cublas: $(BUILD)/bench_cublas
+bench_stream: $(BUILD)/bench_stream_ideal
 
 $(BUILD):
 	@mkdir -p $(BUILD)
@@ -47,6 +49,9 @@ $(BUILD)/bandwidth: src/probe/bandwidth.cu include/qgemm/*.cuh | $(BUILD)
 $(BUILD)/bench_cublas: src/bench/bench_cublas.cu include/qgemm/*.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
 
+$(BUILD)/bench_stream_ideal: src/bench/bench_stream_ideal.cu include/qgemm/*.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.
 run-probe: $(PROBES)
@@ -55,6 +60,15 @@ run-probe: $(PROBES)
 	@$(BUILD)/device_props
 	@echo
 	@$(BUILD)/bandwidth 256
+
+# Pure weight-stream bound. Requires MEASURED_BW (GB/s) from ./bandwidth.
+#   make run-stream MEASURED_BW=124.2
+run-stream: $(BUILD)/bench_stream_ideal
+	@if [ -z "$(MEASURED_BW)" ]; then \
+	  echo "usage: make run-stream MEASURED_BW=<read-only GB/s from ./bandwidth>"; \
+	  exit 2; \
+	fi
+	$(BUILD)/bench_stream_ideal 0 $(MEASURED_BW)
 
 arch-info:
 	@echo "CUDA_HOME = $(CUDA_HOME)"
