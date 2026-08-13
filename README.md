@@ -14,8 +14,10 @@ weight** than FP8. The available speedup is known in advance; roughly none of it
 is currently realized. This project measures where it goes and how much of it can
 be recovered.
 
-Full brief: [`docs/PROJECT-v2.0-fp4-hopper.md`](docs/PROJECT-v2.0-fp4-hopper.md)
-Predictions, committed before measurement: [`PREREGISTRATION.md`](PREREGISTRATION.md)
+Full brief: [`docs/PROJECT-v2.0-fp4-hopper.md`](docs/PROJECT-v2.0-fp4-hopper.md)  
+**Master execution plan (peak standard):** [`docs/MASTER_EXECUTION_PLAN.md`](docs/MASTER_EXECUTION_PLAN.md)  
+Living status: [`docs/STATUS.md`](docs/STATUS.md) · Gates: [`docs/GATES.md`](docs/GATES.md) · Shapes: [`docs/SHAPES.md`](docs/SHAPES.md)  
+Predictions: [`PREREGISTRATION.md`](PREREGISTRATION.md)
 
 ---
 
