@@ -7,8 +7,18 @@
 #   make                 build everything for the local arch (default sm_86)
 #   make ARCH=sm_90      build for Hopper
 #   make probe           just the device/bandwidth probes
-#   make run-probe       build and run both probes
+#   make bench           all benches (cublas, stream, naive, qgemv)
+#   make bench_cublas    FP16 cuBLAS baseline
+#   make bench_stream    packed-weight stream ideal
+#   make bench_naive     naive dequant + cuBLAS sanity floor
+#   make bench_qgemv     fused-ref qgemv (correct-slow; not a SOTA claim)
+#   make run-probe       build and run both probes + env_capture
+#   make run-stream MEASURED_BW=<gbps>
 #   make test-cpu        host unit tests (g++, no GPU)
+#   make test-gpu        fused-ref GPU correctness (nvcc)
+#   make local-peak      scripts/run_local_peak.sh
+#   make sanitize        compute-sanitizer memcheck on test_qgemv_gpu
+#   make arch-info       print CUDA_HOME, ARCH, nvcc
 #   make clean
 
 CUDA_HOME ?= /usr/local/cuda-12.6
@@ -36,8 +46,9 @@ BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
            $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref
 ALL     := $(PROBES) $(BENCHES)
 
-.PHONY: all probe bench bench_cublas bench_stream bench_naive run-probe \
-        run-stream clean arch-info test-cpu test-gpu
+.PHONY: all probe bench bench_cublas bench_stream bench_naive bench_qgemv \
+        run-probe run-stream clean arch-info test-cpu test-gpu \
+        local-peak sanitize
 
 all: $(ALL)
 
@@ -70,10 +81,18 @@ $(BUILD)/test_qgemv_gpu: tests/test_qgemv_gpu.cu include/qgemm/qgemv_ref.cuh \
                          include/qgemm/timing.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
+$(BUILD)/test_qgemv_probes: tests/test_qgemv_probes.cu include/qgemm/qgemv_ref.cuh \
+                            include/qgemm/dequant_device.cuh include/qgemm/pack.hpp \
+                            include/qgemm/correctness.hpp include/qgemm/ref_gemm.hpp \
+                            include/qgemm/timing.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 # GPU correctness for the fused-ref kernel (sm_86 lab). Not a perf claim.
-test-gpu: $(BUILD)/test_qgemv_gpu
+test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
+	@echo "--- test_qgemv_probes ---"
+	@$(BUILD)/test_qgemv_probes
 	@echo "GPU fused-ref tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
