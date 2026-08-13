@@ -39,7 +39,7 @@ sm_86 harness outcomes recorded 2026-08-12. sm_90 predictions incomplete until p
 2. **ncu on laptop** — Windows GPU Performance Counters ACL (G2 FAIL)  
 3. **ncu on DGX** — admin policy  
 4. **Upstream demand** ping (G6)  
-5. **GitHub PAT `workflow` scope** — if push of `.github/workflows/` is rejected  
+5. **GitHub PAT `workflow` scope** — `cpu-ci.yml` is ready locally under `.github/workflows/` but **not on remote** until the token includes `workflow`  
 
 ---
 
