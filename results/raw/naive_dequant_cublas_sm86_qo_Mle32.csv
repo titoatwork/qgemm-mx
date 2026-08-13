@@ -1,0 +1,7 @@
+shape,M,N,K,path,graphed_cold_us,pct_of_ideal_fp16_bytes,achieved_gbps
+q_o_proj,1,4096,4096,naive_dequant_cublas,754.0480,35.85,44.52
+q_o_proj,2,4096,4096,naive_dequant_cublas,711.5520,38.01,47.20
+q_o_proj,4,4096,4096,naive_dequant_cublas,686.9760,39.40,48.94
+q_o_proj,8,4096,4096,naive_dequant_cublas,688.8960,39.37,48.90
+q_o_proj,16,4096,4096,naive_dequant_cublas,692.3520,39.33,48.84
+q_o_proj,32,4096,4096,naive_dequant_cublas,695.1680,39.47,49.02

@@ -1,0 +1,10 @@
+=== naive dequant + cuBLAS (sanity floor) ===
+device NVIDIA GeForce RTX 3050 6GB Laptop GPU  denominator 124.2 GB/s  layer q_o_proj max_M 32
+q_o_proj M=1  cold=754.05 us  %ideal(fp16 bytes)=35.8
+q_o_proj M=2  cold=711.55 us  %ideal(fp16 bytes)=38.0
+q_o_proj M=4  cold=686.98 us  %ideal(fp16 bytes)=39.4
+q_o_proj M=8  cold=688.90 us  %ideal(fp16 bytes)=39.4
+q_o_proj M=16  cold=692.35 us  %ideal(fp16 bytes)=39.3
+q_o_proj M=32  cold=695.17 us  %ideal(fp16 bytes)=39.5
+
+Sanity floor only. Expect much worse %ideal than fused paths once they exist — extra dequant write + re-read.

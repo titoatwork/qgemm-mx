@@ -32,11 +32,12 @@ CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
              $(BUILD)/test_ref_gemm
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
-BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal
+BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
+           $(BUILD)/bench_naive_dequant
 ALL     := $(PROBES) $(BENCHES)
 
-.PHONY: all probe bench bench_cublas bench_stream run-probe run-stream clean \
-        arch-info test-cpu
+.PHONY: all probe bench bench_cublas bench_stream bench_naive run-probe \
+        run-stream clean arch-info test-cpu
 
 all: $(ALL)
 
@@ -82,6 +83,12 @@ $(BUILD)/bench_cublas: src/bench/bench_cublas.cu include/qgemm/*.cuh | $(BUILD)
 
 $(BUILD)/bench_stream_ideal: src/bench/bench_stream_ideal.cu include/qgemm/*.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
+
+$(BUILD)/bench_naive_dequant: src/bench/bench_naive_dequant.cu include/qgemm/*.cuh \
+                              include/qgemm/shapes.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
+
+bench_naive: $(BUILD)/bench_naive_dequant
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.
