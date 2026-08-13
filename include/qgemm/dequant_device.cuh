@@ -23,6 +23,20 @@ __device__ __forceinline__ int int4_from_nibble(uint8_t n) {
   return (n & 8) ? static_cast<int>(n) - 16 : static_cast<int>(n);
 }
 
+// Interleaved-style upconvert (same *math* as 0x6400 mantissa insert).
+// Prior art: TRT-LLM / vLLM numeric_conversion — we re-derived the 1024+u
+// identity for unsigned nibble u, then map two's-complement.
+// MUST match int4_from_nibble exactly (tested).
+__device__ __forceinline__ float int4_from_nibble_bittrick(uint8_t n) {
+  const unsigned u = static_cast<unsigned>(n & 0xF);
+  // FP16 1024.0 = 0x6400; LSBs of mantissa at this exponent are 1.0, so
+  // 0x6400+u == 1024+u for u in 0..15. Subtract 1024, then signed adjust.
+  const __half h = __ushort_as_half(static_cast<unsigned short>(0x6400u + u));
+  float v = __half2float(h) - 1024.0f;
+  if (u >= 8u) v -= 16.0f;
+  return v;
+}
+
 __device__ __forceinline__ float fp16_bits_to_float(uint16_t h) {
   __half v = __ushort_as_half(h);
   return __half2float(v);

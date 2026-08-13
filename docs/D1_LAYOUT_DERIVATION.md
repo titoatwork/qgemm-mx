@@ -75,9 +75,11 @@ Sourced: Machete (Wilkinson 2024), Colfax WGMMA tutorial, CUTLASS ex. 55. Full w
 - Marlin’s hand `mma` shuffle **does not port**; ~37% Hopper peak lost if we only issue `mma.sync`.  
 - Interleaved nibble→f16 prior art: vLLM `vllm_numeric_conversion.cuh` — **cite, do not paste tables blindly**.
 
+- [x] Explicit “transpose GEMM” in code: `include/qgemm/kernel_contract.hpp` (`wgmma_view`)  
 - [ ] Written 32-bit word diagram for **A-fragment** (not Ampere B-fragment)  
 - [ ] CuTe or equivalent layout description of the pre-shuffle  
-- [ ] Explicit “transpose GEMM” in the kernel contract (`Y = X @ Wᵀ` in math ↔ `wgmma` NT/TN choice)
+
+Logical `Y = X @ Wᵀ` ↔ issued MMA `Yᵀ = W Xᵀ` (weights = wgmma **A**).
 
 ### Step E — Split-K and scale-group boundaries
 

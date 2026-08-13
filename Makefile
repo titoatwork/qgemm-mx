@@ -40,7 +40,8 @@ LDLIBS    := -lcublas
 CXX      ?= g++
 CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -Iinclude
 CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
-             $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy
+             $(BUILD)/test_ref_gemm $(BUILD)/test_occupancy \
+             $(BUILD)/test_contract
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
@@ -72,7 +73,13 @@ test-cpu: $(CPU_TESTS)
 	@$(BUILD)/test_ref_gemm
 	@echo "--- test_occupancy ---"
 	@$(BUILD)/test_occupancy
+	@echo "--- test_contract ---"
+	@$(BUILD)/test_contract
 	@echo "All CPU tests passed."
+
+$(BUILD)/test_contract: tests/test_contract.cpp include/qgemm/kernel_contract.hpp \
+                        include/qgemm/occupancy.hpp include/qgemm/shapes.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(BUILD)/test_occupancy: tests/test_occupancy.cpp include/qgemm/occupancy.hpp \
                          include/qgemm/shapes.hpp | $(BUILD)
@@ -89,12 +96,20 @@ $(BUILD)/test_qgemv_probes: tests/test_qgemv_probes.cu include/qgemm/qgemv_ref.c
                             include/qgemm/timing.cuh | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
+$(BUILD)/test_bittrick_splitk: tests/test_bittrick_splitk.cu \
+                               include/qgemm/qgemv_ref.cuh \
+                               include/qgemm/dequant_device.cuh | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 # GPU correctness for the fused-ref kernel (sm_86 lab). Not a perf claim.
-test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes
+test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
+          $(BUILD)/test_bittrick_splitk
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
 	@$(BUILD)/test_qgemv_probes
+	@echo "--- test_bittrick_splitk ---"
+	@$(BUILD)/test_bittrick_splitk
 	@echo "GPU fused-ref tests passed."
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \

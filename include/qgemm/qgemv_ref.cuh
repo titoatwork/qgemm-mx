@@ -46,4 +46,51 @@ __global__ void k_qgemm_ref(const float* __restrict__ X, const uint8_t* packed,
   Y[m * N + n] = acc;
 }
 
+// Split-K fused-ref: blockIdx.y is the K-split. Partial sums atomicAdd into Y.
+// Caller MUST zero Y. Split boundaries snap to `group` (32 MX / 16 NV / 128 INT4).
+__global__ void k_qgemm_ref_splitk(const float* __restrict__ X,
+                                   const uint8_t* packed,
+                                   const uint16_t* scales_u16,
+                                   const uint8_t* scales_u8, float tensor_scale,
+                                   float* __restrict__ Y, int M, int N, int K,
+                                   int group, QFormat fmt, int split_k) {
+  if (split_k < 1) return;
+  const int sk = static_cast<int>(blockIdx.y);
+  if (sk >= split_k) return;
+
+  const int tid = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+  const int MN = M * N;
+  if (tid >= MN) return;
+  const int m = tid / N;
+  const int n = tid - m * N;
+
+  const int g = (group > 0) ? group : 1;
+  const int k_aligned = (K / g) * g;
+  const int chunks = k_aligned / g;
+  const int chunk0 = (chunks * sk) / split_k;
+  const int chunk1 = (chunks * (sk + 1)) / split_k;
+  const int k0 = chunk0 * g;
+  const int k1 = chunk1 * g;
+
+  float acc = 0.f;
+  for (int k = k0; k < k1; ++k) {
+    float w = 0.f;
+    if (fmt == QFormat::Int4) {
+      w = dev::dequant_int4_elem(packed, scales_u16, static_cast<size_t>(n),
+                                 static_cast<size_t>(k), static_cast<size_t>(N),
+                                 static_cast<size_t>(K), group);
+    } else if (fmt == QFormat::Mxfp4) {
+      w = dev::dequant_mxfp4_elem(packed, scales_u8, static_cast<size_t>(n),
+                                  static_cast<size_t>(k), static_cast<size_t>(N),
+                                  static_cast<size_t>(K));
+    } else {
+      w = dev::dequant_nvfp4_elem(packed, scales_u8, tensor_scale,
+                                  static_cast<size_t>(n), static_cast<size_t>(k),
+                                  static_cast<size_t>(N), static_cast<size_t>(K));
+    }
+    acc += X[m * K + k] * w;
+  }
+  if (acc != 0.f) atomicAdd(&Y[m * N + n], acc);
+}
+
 }  // namespace qgemm
