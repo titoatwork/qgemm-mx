@@ -10,9 +10,9 @@
 
 | Rung | State | Notes |
 |------|--------|------|
-| **R0 Instrument** | **In progress (local peak largely landed)** | Harness, pack/probes, stream ideal, analysis, CPU tests green on sm_86. **sm_90 probe + public kernel rebench + L2 proof still open** |
+| **R0 Instrument** | **In progress — local peak strong** | Full frozen shapes on sm_86 (cuBLAS M≤256 + stream all formats). Pack/probes/ref GEMM CPU tests green. **sm_90 + public kernels still open** |
 | R1 Quantify | Not started | Needs sm_90 + baselines |
-| R2 Close | Not started | Blocked on R1 go/no-go + D1 layout complete |
+| R2 Close | Not started | D1 layout incomplete; R1 go/no-go |
 | R3 Extend | Not started | |
 
 ---
@@ -21,43 +21,45 @@
 
 | Device | Probe BW | Harness validated | ncu counters | Exclusive runs |
 |--------|----------|-------------------|--------------|----------------|
-| sm_86 RTX 3050 laptop | **124.2 GB/s** RO | **Yes** (FP16 M=1 ~101% ideal) | **FAIL** G2 | N/A (local) |
+| sm_86 RTX 3050 laptop | **124.2 GB/s** RO | **Yes** | **FAIL** G2 | N/A |
 | sm_90 H100 DGX | **UNMEASURED** | No | UNKNOWN G3 | TBD |
 
 ---
 
-## Predictions
+## Key local artifacts
 
-See [`../PREREGISTRATION.md`](../PREREGISTRATION.md).  
-sm_86 harness outcomes recorded 2026-08-12. sm_90 predictions incomplete until probe.
+| Path | Content |
+|------|---------|
+| `results/raw/stream_ideal_sm86_fullshapes.csv` | Pure weight stream, all layers × formats |
+| `results/raw/cublas_fp16_sm86_fullshapes_Mle256.csv` | FP16 cuBLAS, all layers, M≤256 |
+| `docs/figures/*fullshapes*` | Latency / %ideal plots |
+| `include/qgemm/pack.hpp` + `tests/` | Host quant pack + probes + ref GEMM |
 
 ---
 
-## Blockers (need human / external)
+## Blockers (need you)
 
-1. **DGX H100** — `make ARCH=sm_90 run-probe` + fill PREREGISTRATION  
-2. **ncu on laptop** — Windows GPU Performance Counters ACL (G2 FAIL)  
-3. **ncu on DGX** — admin policy  
+1. **DGX:** `make ARCH=sm_90 run-probe` → PREREGISTRATION sm_90 table  
+2. **ncu laptop:** Windows GPU counter ACL (G2)  
+3. **PAT workflow scope** if you want CI YAML on GitHub  
 4. **Upstream demand** ping (G6)  
-5. **GitHub PAT `workflow` scope** — `cpu-ci.yml` is ready locally under `.github/workflows/` but **not on remote** until the token includes `workflow`  
 
 ---
 
-## Recent milestones
+## Next (automated when possible)
 
-| Date | Milestone |
-|------|-----------|
-| 2026-08-12 | R0 harness, probes, env capture, preregistration, cuBLAS FP16 sm_86 |
-| 2026-08-13 | Peak master plan + governance docs pushed |
-| 2026-08-13 | Host pack/shapes/probes + `make test-cpu` OK |
-| 2026-08-13 | Stream-ideal bench + analyze/plot scripts |
-| 2026-08-13 | G2 ncu gate FAIL logged; CONTRIBUTING |
+1. Naive dequant+cuBLAS bench (sanity floor)  
+2. Public baseline scaffolding (Marlin) when torch available  
+3. D1 layout study fill-in  
+4. sm_90 R0 when machine available  
 
 ---
 
-## Next actions (priority)
+## Recent commits (selected)
 
-1. User: fix G2 ncu OR accept profiler-free methodology  
-2. User: DGX G1 probe session  
-3. Public baseline scaffolding (Marlin/etc.) when torch/GPU ready  
-4. Complete D1 layout derivation study before any R2 kernel  
+| SHA | Summary |
+|-----|---------|
+| `30fe16b` | Full shapes sm_86, ref GEMM, baseline scaffold |
+| `da4fd7c` | Host pack / probes / CPU tests |
+| `45f6c5e` | Stream ideal + analysis |
+| `a6bf3a2` | Peak master plan |
