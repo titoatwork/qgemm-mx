@@ -1,0 +1,17 @@
+shape,M,N,K,format,path,rotation,graphed_cold_us,pct_of_ideal_fp16_bytes,pct_of_ideal_packed_bytes,achieved_gbps
+custom,1,256,256,int4_g128,dequant_then_cublas,24,8.5760,12.40,3.27,15.40
+custom,2,256,256,int4_g128,dequant_then_cublas,24,10.2400,10.47,2.82,13.00
+custom,4,256,256,int4_g128,dequant_then_cublas,24,10.2400,10.63,2.98,13.20
+custom,8,256,256,int4_g128,dequant_then_cublas,24,10.2827,10.90,3.29,13.54
+custom,1,256,256,mxfp4,dequant_then_cublas,24,15.5733,6.83,1.85,8.48
+custom,2,256,256,mxfp4,dequant_then_cublas,24,18.2613,5.87,1.63,7.29
+custom,4,256,256,mxfp4,dequant_then_cublas,24,18.3040,5.95,1.71,7.38
+custom,8,256,256,mxfp4,dequant_then_cublas,24,18.3467,6.11,1.89,7.59
+q_o_proj,1,4096,4096,int4_g128,dequant_then_cublas,2,1201.0241,22.51,5.81,27.95
+q_o_proj,2,4096,4096,int4_g128,dequant_then_cublas,2,974.9760,27.74,7.17,34.45
+q_o_proj,4,4096,4096,int4_g128,dequant_then_cublas,2,952.1920,28.43,7.37,35.31
+q_o_proj,8,4096,4096,int4_g128,dequant_then_cublas,2,953.4720,28.45,7.42,35.33
+q_o_proj,1,4096,4096,mxfp4,dequant_then_cublas,2,3033.5720,8.91,2.37,11.07
+q_o_proj,2,4096,4096,mxfp4,dequant_then_cublas,2,3060.7359,8.84,2.35,10.97
+q_o_proj,4,4096,4096,mxfp4,dequant_then_cublas,2,3031.6601,8.93,2.38,11.09
+q_o_proj,8,4096,4096,mxfp4,dequant_then_cublas,2,3040.1280,8.92,2.40,11.08

@@ -1,0 +1,32 @@
+=== dequant-then-cuBLAS (real pack.hpp encodings) ===
+device NVIDIA GeForce RTX 3050 6GB Laptop GPU  denominator 124.2 GB/s  shape 256x256 max_M 8  fmt all
+  dequant check int4_g128  n=65536  max_abs=0  max_rel=0
+custom  int4_g128  N=256 K=256  packed 0.03 MB  W_fp16 0.12 MB  rot 24
+  M=1  cold=8.58 us  %ideal(fp16)=12.4  %ideal(packed)=3.3
+  M=2  cold=10.24 us  %ideal(fp16)=10.5  %ideal(packed)=2.8
+  M=4  cold=10.24 us  %ideal(fp16)=10.6  %ideal(packed)=3.0
+  M=8  cold=10.28 us  %ideal(fp16)=10.9  %ideal(packed)=3.3
+  dequant check mxfp4  n=65536  max_abs=0  max_rel=0
+custom  mxfp4  N=256 K=256  packed 0.03 MB  W_fp16 0.12 MB  rot 24
+  M=1  cold=15.57 us  %ideal(fp16)=6.8  %ideal(packed)=1.9
+  M=2  cold=18.26 us  %ideal(fp16)=5.9  %ideal(packed)=1.6
+  M=4  cold=18.30 us  %ideal(fp16)=5.9  %ideal(packed)=1.7
+  M=8  cold=18.35 us  %ideal(fp16)=6.1  %ideal(packed)=1.9
+
+Sanity floor (real encodings). Extra dequant write + FP16 re-read vs a fused path.
+=== dequant-then-cuBLAS (real pack.hpp encodings) ===
+device NVIDIA GeForce RTX 3050 6GB Laptop GPU  denominator 124.2 GB/s  shape q_o_proj max_M 8  fmt all
+  dequant check int4_g128  n=16777216  max_abs=0  max_rel=0
+q_o_proj  int4_g128  N=4096 K=4096  packed 8.00 MB  W_fp16 32.00 MB  rot 2
+  M=1  cold=1201.02 us  %ideal(fp16)=22.5  %ideal(packed)=5.8
+  M=2  cold=974.98 us  %ideal(fp16)=27.7  %ideal(packed)=7.2
+  M=4  cold=952.19 us  %ideal(fp16)=28.4  %ideal(packed)=7.4
+  M=8  cold=953.47 us  %ideal(fp16)=28.4  %ideal(packed)=7.4
+  dequant check mxfp4  n=16777216  max_abs=0  max_rel=0
+q_o_proj  mxfp4  N=4096 K=4096  packed 8.00 MB  W_fp16 32.00 MB  rot 2
+  M=1  cold=3033.57 us  %ideal(fp16)=8.9  %ideal(packed)=2.4
+  M=2  cold=3060.74 us  %ideal(fp16)=8.8  %ideal(packed)=2.4
+  M=4  cold=3031.66 us  %ideal(fp16)=8.9  %ideal(packed)=2.4
+  M=8  cold=3040.13 us  %ideal(fp16)=8.9  %ideal(packed)=2.4
+
+Sanity floor (real encodings). Extra dequant write + FP16 re-read vs a fused path.

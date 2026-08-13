@@ -7,10 +7,11 @@
 #   make                 build everything for the local arch (default sm_86)
 #   make ARCH=sm_90      build for Hopper
 #   make probe           just the device/bandwidth probes
-#   make bench           all benches (cublas, stream, naive, qgemv)
+#   make bench           all benches (cublas, stream, naive, deq, qgemv)
 #   make bench_cublas    FP16 cuBLAS baseline
 #   make bench_stream    packed-weight stream ideal
-#   make bench_naive     naive dequant + cuBLAS sanity floor
+#   make bench_naive     dummy nibble-expand + cuBLAS (traffic-shaped floor)
+#   make bench_deq       real pack.hpp dequant + cuBLAS FP16 (sanity floor)
 #   make bench_qgemv     fused-ref qgemv (correct-slow; not a SOTA claim)
 #   make run-probe       build and run both probes + env_capture
 #   make run-stream MEASURED_BW=<gbps>
@@ -43,11 +44,12 @@ CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
 
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
-           $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref
+           $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref \
+           $(BUILD)/bench_dequant_then_cublas
 ALL     := $(PROBES) $(BENCHES)
 
 .PHONY: all probe bench bench_cublas bench_stream bench_naive bench_qgemv \
-        run-probe run-stream clean arch-info test-cpu test-gpu \
+        bench_deq run-probe run-stream clean arch-info test-cpu test-gpu \
         local-peak sanitize
 
 all: $(ALL)
@@ -128,8 +130,13 @@ $(BUILD)/bench_qgemv_ref: src/bench/bench_qgemv_ref.cu include/qgemm/*.cuh \
                           include/qgemm/*.hpp | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
+$(BUILD)/bench_dequant_then_cublas: src/bench/bench_dequant_then_cublas.cu \
+                                    include/qgemm/*.cuh include/qgemm/*.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDLIBS)
+
 bench_naive: $(BUILD)/bench_naive_dequant
 bench_qgemv: $(BUILD)/bench_qgemv_ref
+bench_deq: $(BUILD)/bench_dequant_then_cublas
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.
