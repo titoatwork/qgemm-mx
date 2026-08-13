@@ -160,6 +160,17 @@ __device__ __forceinline__ float dequant_mxfp4_elem(const uint8_t* data,
                           scales[n * blocks + b]);
 }
 
+__device__ __forceinline__ float dequant_mxfp4_elem_eo(const unsigned* words,
+                                                       const uint8_t* scales,
+                                                       size_t n, size_t k,
+                                                       size_t N, size_t K) {
+  (void)N;
+  const size_t blocks = K / 32;
+  const size_t b = k / 32;
+  return mxfp4_elem_ldexp(unpack_nibble_even_odd(words, n, k, K),
+                          scales[n * blocks + b]);
+}
+
 __device__ __forceinline__ float dequant_nvfp4_elem(const uint8_t* data,
                                                     const uint8_t* scales,
                                                     float tensor_scale,

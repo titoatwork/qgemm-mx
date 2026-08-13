@@ -93,4 +93,39 @@ __global__ void k_qgemm_ref_splitk(const float* __restrict__ X,
   if (acc != 0.f) atomicAdd(&Y[m * N + n], acc);
 }
 
+// Dual-nibble MX fused-ref on even/odd words. One thread per (m,n).
+// Processes 8 Ks per 32-bit load (4 even + 4 odd). Not wgmma.
+__global__ void k_qgemm_ref_mx_even_odd_dual(
+    const float* __restrict__ X, const unsigned* __restrict__ words,
+    const uint8_t* __restrict__ scales, float* __restrict__ Y, int M, int N,
+    int K) {
+  const int tid = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+  const int MN = M * N;
+  if (tid >= MN) return;
+  const int m = tid / N;
+  const int n = tid - m * N;
+  const int nwords = K >> 3;
+  const int blocks = K >> 5;  // /32
+  const unsigned* row = words + static_cast<size_t>(n) * static_cast<size_t>(nwords);
+  const uint8_t* sc = scales + static_cast<size_t>(n) * static_cast<size_t>(blocks);
+  const float* xrow = X + static_cast<size_t>(m) * static_cast<size_t>(K);
+
+  float acc = 0.f;
+  for (int wi = 0; wi < nwords; ++wi) {
+    uint8_t ev[4], od[4];
+    dev::dual_nibbles_from_word(row[wi], ev, od);
+    const int k0 = wi << 3;
+    // ev[i] is k = k0 + 2*i ; od[i] is k = k0 + 2*i + 1
+    for (int i = 0; i < 4; ++i) {
+      const int ke = k0 + (i << 1);
+      const int ko = ke + 1;
+      const int be = ke >> 5;
+      const int bo = ko >> 5;
+      acc += xrow[ke] * dev::mxfp4_elem_ldexp(ev[i], sc[be]);
+      acc += xrow[ko] * dev::mxfp4_elem_ldexp(od[i], sc[bo]);
+    }
+  }
+  Y[m * N + n] = acc;
+}
+
 }  // namespace qgemm

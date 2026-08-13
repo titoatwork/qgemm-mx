@@ -90,4 +90,49 @@ inline std::uint8_t unpack_nibble_even_odd(const std::uint32_t* words,
   return nibble_from_u32(w, even_odd_slot(static_cast<int>(k % 8)));
 }
 
+// First-class even/odd packed tensors. Scales stay sequential (per group along K).
+struct PackedMxfp4Eo {
+  std::size_t N = 0;
+  std::size_t K = 0;
+  std::vector<std::uint32_t> words;  // N * (K/8)
+  std::vector<std::uint8_t> scales;  // same as PackedMxfp4
+};
+
+struct PackedInt4Eo {
+  std::size_t N = 0;
+  std::size_t K = 0;
+  int group = kInt4Group128;
+  std::vector<std::uint32_t> words;
+  std::vector<std::uint16_t> scales;
+};
+
+inline PackedMxfp4Eo pack_mxfp4_even_odd(const float* W, std::size_t N,
+                                         std::size_t K) {
+  if (K % 8 != 0) {
+    throw std::invalid_argument("pack_mxfp4_even_odd: K must be multiple of 8");
+  }
+  PackedMxfp4 seq = pack_mxfp4(W, N, K);
+  PackedMxfp4Eo out;
+  out.N = seq.N;
+  out.K = seq.K;
+  out.scales = std::move(seq.scales);
+  out.words = matrix_seq_to_even_odd(seq.data.data(), N, K);
+  return out;
+}
+
+inline PackedInt4Eo pack_int4_even_odd(const float* W, std::size_t N,
+                                       std::size_t K, int group = kInt4Group128) {
+  if (K % 8 != 0) {
+    throw std::invalid_argument("pack_int4_even_odd: K must be multiple of 8");
+  }
+  PackedInt4 seq = pack_int4(W, N, K, group);
+  PackedInt4Eo out;
+  out.N = seq.N;
+  out.K = seq.K;
+  out.group = seq.group;
+  out.scales = std::move(seq.scales);
+  out.words = matrix_seq_to_even_odd(seq.data.data(), N, K);
+  return out;
+}
+
 }  // namespace qgemm

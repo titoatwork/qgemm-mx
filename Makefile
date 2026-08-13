@@ -46,7 +46,8 @@ CPU_TESTS := $(BUILD)/test_formats $(BUILD)/test_pack_roundtrip \
 PROBES  := $(BUILD)/device_props $(BUILD)/bandwidth
 BENCHES := $(BUILD)/bench_cublas $(BUILD)/bench_stream_ideal \
            $(BUILD)/bench_naive_dequant $(BUILD)/bench_qgemv_ref \
-           $(BUILD)/bench_dequant_then_cublas $(BUILD)/bench_waterfall
+           $(BUILD)/bench_dequant_then_cublas $(BUILD)/bench_waterfall \
+           $(BUILD)/bench_dual_nibble
 ALL     := $(PROBES) $(BENCHES)
 
 .PHONY: all probe bench bench_cublas bench_stream bench_naive bench_qgemv \
@@ -119,7 +120,7 @@ $(BUILD)/test_even_odd_gpu: tests/test_even_odd_gpu.cu include/qgemm/permute.hpp
 
 test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
           $(BUILD)/test_bittrick_splitk $(BUILD)/test_mx_decode \
-          $(BUILD)/test_even_odd_gpu
+          $(BUILD)/test_even_odd_gpu $(BUILD)/test_dual_nibble
 	@echo "--- test_qgemv_gpu ---"
 	@$(BUILD)/test_qgemv_gpu
 	@echo "--- test_qgemv_probes ---"
@@ -130,7 +131,13 @@ test-gpu: $(BUILD)/test_qgemv_gpu $(BUILD)/test_qgemv_probes \
 	@$(BUILD)/test_mx_decode
 	@echo "--- test_even_odd_gpu ---"
 	@$(BUILD)/test_even_odd_gpu
+	@echo "--- test_dual_nibble ---"
+	@$(BUILD)/test_dual_nibble
 	@echo "GPU fused-ref tests passed."
+
+$(BUILD)/test_dual_nibble: tests/test_dual_nibble.cu include/qgemm/qgemv_ref.cuh \
+                           include/qgemm/permute.hpp include/qgemm/pack.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 $(BUILD)/test_formats: tests/test_formats.cpp include/qgemm/formats.cuh \
                        include/qgemm/pack.hpp include/qgemm/shapes.hpp | $(BUILD)
@@ -176,7 +183,12 @@ $(BUILD)/bench_waterfall: src/bench/bench_waterfall.cu include/qgemm/*.cuh \
 bench_naive: $(BUILD)/bench_naive_dequant
 bench_qgemv: $(BUILD)/bench_qgemv_ref
 bench_deq: $(BUILD)/bench_dequant_then_cublas
+$(BUILD)/bench_dual_nibble: src/bench/bench_dual_nibble.cu include/qgemm/*.cuh \
+                            include/qgemm/*.hpp | $(BUILD)
+	$(NVCC) $(NVCCFLAGS) $< -o $@
+
 bench_waterfall: $(BUILD)/bench_waterfall
+bench_dual: $(BUILD)/bench_dual_nibble
 
 # Run both probes and capture the environment alongside them. Do this first on
 # every new machine; the bandwidth figure is the project's denominator.

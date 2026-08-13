@@ -74,7 +74,8 @@ This is **not** a `wgmma` A-fragment. It is the correctness layout. R2 must **of
 
 - [x] Sequential 32-bit word diagram (R0 pack)  
 - [x] Even/odd 32-bit permute + inverse + dual-nibble extract (`permute.hpp`, `test_permute`, `test_even_odd_gpu`)  
-- [ ] Offline pack stored even/odd by default + **A-fragment** CuTe/PTX diagram (R2)  
+- [x] First-class `pack_mxfp4_even_odd` / `pack_int4_even_odd` + dual-nibble fused-ref (`k_qgemm_ref_mx_even_odd_dual`) — matches sequential (max_abs=0); ~3× faster than scalar sequential on 256² sm_86 (not a roof claim)  
+- [ ] **A-fragment** CuTe/PTX diagram + store even/odd as production default (R2)  
 
 ### Step C — sm_86 fragment mapping (`mma.sync`)
 
