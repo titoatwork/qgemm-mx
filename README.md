@@ -145,3 +145,16 @@ numbers survive scrutiny.
 this project away from its original target (dense INT4 on Ampere, a solved
 problem), and `docs/v1.0-original-brief.md` is what it looked like before. Both
 are kept deliberately: the revision is part of the record.
+
+---
+
+## Companion project
+
+**[Slipstream](https://github.com/titoatwork/slipstream)** is the same thesis one
+layer up. Both start from the fact that LLM decode is bandwidth-bound, not
+compute-bound. qgemm-mx attacks that wall at the **kernel** level — moving fewer
+bytes per weight by recovering block-scaled FP4 throughput. Slipstream attacks it
+at the **system** level, where paged KV memory and scheduling policy set the batch
+size the hardware ever gets to run. A fused FP4 dequant-GEMM is exactly the kind
+of kernel that drops into Slipstream's quantized decode path: kernel depth and
+system breadth, deliberately paired.
