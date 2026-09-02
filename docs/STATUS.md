@@ -1,6 +1,6 @@
 # Project status dashboard
 
-**Last updated:** 2026-08-13 (device A-fragment fused-ref + SMEM desc bits)  
+**Last updated:** 2026-09-02 (sm_90 build verification + arch-generic R0 runner)  
 **Remote policy:** **local-only development** — no routine GitHub push (see [`LOCAL_WORKFLOW.md`](LOCAL_WORKFLOW.md))  
 **Authoritative plan:** [`MASTER_EXECUTION_PLAN.md`](MASTER_EXECUTION_PLAN.md)  
 **Thesis:** [`PROJECT-v2.0-fp4-hopper.md`](PROJECT-v2.0-fp4-hopper.md)  
@@ -47,6 +47,13 @@
 | sm_86 RTX 3050 laptop | **124.2 GB/s** RO | **Yes** | **FAIL** G2 | N/A |
 | sm_90 H100 DGX | **UNMEASURED** | No | UNKNOWN G3 | TBD |
 
+**sm_90 build verified 2026-09-02 without an H100.** CUDA 12.6 on the dev box
+emits `compute_90`, so all 17 targets — probes, benches, and every GPU test
+including `test_a_fragment_gpu` and `test_wgmma_desc` — cross-compile for
+`-arch=sm_90` with zero warnings. This proves only that the code compiles for
+Hopper. It says nothing about whether it is correct or fast there; both remain
+open until the device runs it.
+
 ---
 
 ## Key local artifacts
@@ -69,7 +76,11 @@
 
 ## Blockers (need you)
 
-1. **DGX:** `make ARCH=sm_90 run-probe` → PREREGISTRATION sm_90 table  
+1. **DGX:** `ARCH=sm_90 bash scripts/run_r0.sh` → PREREGISTRATION sm_90 table.
+   One command: env capture, build, CPU+GPU correctness, probes, cuBLAS,
+   stream-ideal, then a paste-ready block for `PREREGISTRATION.md` §1. It runs
+   correctness *before* timing, because numbers from an unvalidated device are
+   worse than no numbers.  
 2. **ncu laptop:** Windows GPU counter ACL (G2)  
 3. **PAT workflow scope** if you want CI YAML on GitHub  
 4. **Upstream demand** ping (G6)  
