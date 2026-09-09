@@ -36,8 +36,9 @@ only**: one thread per output, sequential nibble order matching `pack.hpp`, no
 Tensor Cores. It proves the encodings on device. It is **not** a performance
 claim and must never be cited as SOTA. The R2 `wgmma`/TMA path has not started.
 
-**Local-only.** Work stays on this machine. Do not `git push` unless the owner
-asks for a curated public drop — see [`docs/LOCAL_WORKFLOW.md`](docs/LOCAL_WORKFLOW.md).
+Development happens locally and lands here in curated drops rather than
+continuously, so the published history is coarser than the working one. Local
+workflow: [`docs/LOCAL_WORKFLOW.md`](docs/LOCAL_WORKFLOW.md).
 
 ---
 
