@@ -82,8 +82,10 @@ inline size_t total_bytes(Format f, size_t M, size_t N, size_t K,
   return weight_bytes(f, N, K) + M * K * act_bytes + M * N * out_bytes;
 }
 
-// The available speedup in the bandwidth-bound regime, from bytes alone.
-// MXFP4 vs FP8 -> 1.88x. This is the number the project is trying to realize.
+// Byte ratio between two formats, in the order the arguments are passed.
+// The headline 1.88x is byte_ratio(FP8_E4M3, MXFP4): FP8 moves 1.88x the bytes
+// MXFP4 does per weight, and that is the speedup the bandwidth-bound regime
+// makes available. Passed the other way round the same call returns 0.53.
 inline double byte_ratio(Format numerator, Format denominator) {
   return bytes_per_weight(numerator) / bytes_per_weight(denominator);
 }
