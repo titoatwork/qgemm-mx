@@ -97,7 +97,7 @@ inline double flops(size_t M, size_t N, size_t K) {
 
 // Arithmetic intensity in FLOP/byte. Compare against the device ridge point to
 // predict where the format stops being bandwidth-bound: for weight-dominated
-// traffic this is approximately M / bytes_per_weight, so a lower-precision
+// traffic this is approximately 2M / bytes_per_weight, so a lower-precision
 // format goes compute-bound at a LOWER M -- which is exactly why the 4-bit
 // advantage has a ceiling in batch size.
 inline double arithmetic_intensity(Format f, size_t M, size_t N, size_t K) {
