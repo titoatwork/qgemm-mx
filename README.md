@@ -176,6 +176,19 @@ are kept deliberately: the revision is part of the record.
 
 ---
 
+## AI assistance
+
+This project was developed with AI assistance (Anthropic's Claude). AI tooling
+contributed to the planning documents, code drafting, and documentation, and
+`docs/REVIEW-fused-w4a16-gemm-v1.0.md` is an AI-produced technical review of the
+v1.0 brief — it is kept because its findings redirected the project, not because
+of who wrote it. The research direction, architectural decisions, measurement
+protocol, and every performance claim are human-directed and human-owned; results
+are backed by the committed CSVs, environment captures and test suite in this
+repository rather than by any assistant's assertion.
+
+---
+
 ## Companion project
 
 **[Slipstream](https://github.com/titoatwork/slipstream)** is the same thesis one
